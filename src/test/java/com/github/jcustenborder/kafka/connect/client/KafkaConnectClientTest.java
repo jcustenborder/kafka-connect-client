@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -65,7 +65,7 @@ public class KafkaConnectClientTest {
     clientFactory = new KafkaConnectClientFactory();
     clientFactory.host(address.getHostString());
     clientFactory.port(address.getPort());
-    this.client = clientFactory.create();
+    this.client = clientFactory.createClient();
   }
 
   void ensureNoConnectors() throws IOException {
@@ -189,6 +189,7 @@ public class KafkaConnectClientTest {
       int attempts = 0;
       while (true) {
         try {
+          log.info("status() - Retrieving status for {}. Attempt {}", CONNECTOR_NAME, attempts);
           ConnectorStatusResponse statusResponse = client.status(CONNECTOR_NAME);
           assertNotNull(statusResponse, "statusResponse should not be null.");
           assertEquals(CONNECTOR_NAME, statusResponse.name(), "Connector name does not match.");
@@ -198,11 +199,13 @@ public class KafkaConnectClientTest {
           }
           assertEquals(MAX_TASKS, statusResponse.tasks().size(), "Task count does not match.");
           result.set(statusResponse);
-          break;
+          return;
         } catch (KafkaConnectException ex) {
-          if (404 == ex.errorCode() && attempts > 3) {
+          log.debug("Exception thrown", ex);
+          if (404 == ex.errorCode() && attempts > 10) {
             throw ex;
           } else {
+            log.info("status() - Sleeping");
             Thread.sleep(1000);
           }
         } finally {
@@ -256,8 +259,6 @@ public class KafkaConnectClientTest {
   @Test
   @Order(10)
   public void restartTasks() throws IOException {
-    // Make sure the connector is running
-//    this.client.pause(CONNECTOR_NAME);
     ConnectorStatusResponse statusResponse = waitForState(State.Running);
 
     for (TaskStatusResponse taskStatusResponse : statusResponse.tasks()) {
@@ -278,8 +279,6 @@ public class KafkaConnectClientTest {
   @Order(12)
   public void delete() throws IOException {
     this.client.delete(CONNECTOR_NAME);
-//    KafkaConnectException exception = assertThrows(KafkaConnectException.class, () -> waitForState(State.Unassigned));
-//    assertEquals(404, exception.errorCode());
   }
 
   @Order(13)
@@ -295,6 +294,4 @@ public class KafkaConnectClientTest {
     assertNotNull(serverInfo.kafkaClusterId());
     assertNotNull(serverInfo.version());
   }
-
-
 }

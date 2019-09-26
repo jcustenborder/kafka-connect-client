@@ -28,11 +28,11 @@
     </parent>
     <groupId>com.github.jcustenborder.kafka</groupId>
     <artifactId>kafka-connect-client</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.1-SNAPSHOT</version>
     <name>kafka-connect-client</name>
     <packaging>jar</packaging>
     <url>https://github.com/jcustenborder/kafka-connect-client</url>
-    <inceptionYear>2017</inceptionYear>
+    <inceptionYear>2019</inceptionYear>
     <licenses>
         <license>
             <name>Apache License 2.0</name>
