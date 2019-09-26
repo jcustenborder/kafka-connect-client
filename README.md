@@ -1,3 +1,4 @@
+[![Maven Central](https://img.shields.io/maven-central/v/com.github.jcustenborder.kafka/kafka-connect-client.svg)](https://search.maven.org/search?q=g:com.github.jcustenborder.kafka%20AND%20a:kafka-connect-client&core=gav)
 # Introduction
 
 This project provides Java bindings for the Kafka Connect REST API. The idea is to have an easily mockable interface 
