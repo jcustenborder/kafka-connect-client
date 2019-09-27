@@ -29,7 +29,6 @@ import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.json.JsonHttpContent;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.util.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -186,7 +185,7 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
   }
 
   @Override
-  public ValidateResponse validate(String name, ImmutableMap<Object, Object> config) throws IOException {
+  public ValidateResponse validate(String name, Map<String, String> config) throws IOException {
     CompletableFuture<ValidateResponse> future = validateAsync(name, config);
     return get(future);
   }
@@ -373,7 +372,7 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
   }
 
   @Override
-  public CompletableFuture<ValidateResponse> validateAsync(String name, ImmutableMap<Object, Object> config) throws IOException {
+  public CompletableFuture<ValidateResponse> validateAsync(String name, Map<String, String> config) throws IOException {
     GenericUrl url = connectorsPluginsUrl(
         name,
         "config",

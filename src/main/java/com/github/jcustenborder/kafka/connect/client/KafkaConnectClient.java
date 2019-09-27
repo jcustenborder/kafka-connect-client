@@ -22,7 +22,6 @@ import com.github.jcustenborder.kafka.connect.client.model.GetConnectorResponse;
 import com.github.jcustenborder.kafka.connect.client.model.ServerInfo;
 import com.github.jcustenborder.kafka.connect.client.model.TaskStatusResponse;
 import com.github.jcustenborder.kafka.connect.client.model.ValidateResponse;
-import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
 import java.util.List;
@@ -146,7 +145,7 @@ public interface KafkaConnectClient {
    * @return Validation response
    * @throws IOException exception is thrown by the api.
    */
-  ValidateResponse validate(String name, ImmutableMap<Object, Object> config) throws IOException;
+  ValidateResponse validate(String name, Map<String, String> config) throws IOException;
 
   /**
    * Method is used to return the information about the connect worker.
