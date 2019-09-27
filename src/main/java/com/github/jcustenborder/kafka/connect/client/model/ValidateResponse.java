@@ -50,6 +50,14 @@ public class ValidateResponse {
     ConfigDefinition definition;
     @Key("value")
     ConfigValue value;
+
+    public ConfigDefinition definition() {
+      return this.definition;
+    }
+
+    public ConfigValue value() {
+      return this.value;
+    }
   }
 
 
