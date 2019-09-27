@@ -22,7 +22,6 @@ import com.github.jcustenborder.kafka.connect.client.model.GetConnectorResponse;
 import com.github.jcustenborder.kafka.connect.client.model.ServerInfo;
 import com.github.jcustenborder.kafka.connect.client.model.TaskStatusResponse;
 import com.github.jcustenborder.kafka.connect.client.model.ValidateResponse;
-import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
 import java.util.List;
@@ -130,7 +129,7 @@ public interface AsyncKafkaConnectClient {
    * @param config config to test
    * @return Validation response
    */
-  CompletableFuture<ValidateResponse> validateAsync(String name, ImmutableMap<Object, Object> config) throws IOException;
+  CompletableFuture<ValidateResponse> validateAsync(String name, Map<String, String> config) throws IOException;
 
   /**
    * Method is used to return the information about the connect worker.
