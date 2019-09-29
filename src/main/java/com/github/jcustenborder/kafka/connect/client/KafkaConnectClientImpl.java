@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,8 +26,11 @@ import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestFactory;
 import com.google.api.client.http.HttpResponse;
+import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.json.JsonHttpContent;
 import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.JsonObjectParser;
+import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.Preconditions;
 import com.google.common.reflect.TypeToken;
 import org.slf4j.Logger;
@@ -46,21 +49,44 @@ import java.util.concurrent.Future;
 
 class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectClient {
   private static final Logger log = LoggerFactory.getLogger(KafkaConnectClientImpl.class);
+  private static final JsonFactory JSON_FACTORY = new JacksonFactory();
 
   static {
     SLF4JLogBridge.init();
   }
 
-  final ExecutorService executorService;
-  final GenericUrl baseUrl;
-  final HttpRequestFactory httpRequestFactory;
-  final JsonFactory jsonFactory;
+  private final ExecutorService executorService;
+  private final GenericUrl baseUrl;
+  private final HttpTransport httpTransport;
+  private final HttpRequestFactory httpRequestFactory;
+  private final boolean shutdownTransportOnClose;
+  private final boolean shutdownExecutorServiceOnClose;
 
-  KafkaConnectClientImpl(ExecutorService executorService, GenericUrl baseUrl, HttpRequestFactory httpRequestFactory, JsonFactory jsonFactory) {
+  KafkaConnectClientImpl(
+      ExecutorService executorService,
+      GenericUrl baseUrl,
+      HttpTransport httpTransport,
+      boolean shutdownTransportOnClose,
+      boolean shutdownExecutorServiceOnClose,
+      String username,
+      String password
+  ) {
     this.executorService = executorService;
     this.baseUrl = baseUrl;
-    this.httpRequestFactory = httpRequestFactory;
-    this.jsonFactory = jsonFactory;
+    this.httpTransport = httpTransport;
+    this.shutdownTransportOnClose = shutdownTransportOnClose;
+    this.shutdownExecutorServiceOnClose = shutdownExecutorServiceOnClose;
+    this.httpRequestFactory = this.httpTransport.createRequestFactory(httpRequest -> {
+      httpRequest.setFollowRedirects(false);
+      httpRequest.setCurlLoggingEnabled(true);
+      httpRequest.setParser(new JsonObjectParser(JSON_FACTORY));
+      httpRequest.setThrowExceptionOnExecuteError(false);
+      httpRequest.getHeaders().setAcceptEncoding(null);
+      httpRequest.setSuppressUserAgentSuffix(true);
+      httpRequest.getHeaders().setUserAgent("kafka-connect-client");
+      httpRequest.getHeaders().setBasicAuthentication(username, password);
+    });
+
   }
 
   GenericUrl connectorsUrl(String... parts) {
@@ -290,7 +316,7 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
     checkConnectorConfig(config);
     GenericUrl connectorUrl = connectorsUrl(name, "config");
     log.trace("createOrUpdateAsync() - url = '{}'", connectorUrl);
-    JsonHttpContent content = new JsonHttpContent(this.jsonFactory, config);
+    JsonHttpContent content = new JsonHttpContent(JSON_FACTORY, config);
     HttpRequest httpRequest = this.httpRequestFactory.buildPutRequest(connectorUrl, content);
     return parseAs(httpRequest, CreateOrUpdateConnectorResponse.class);
   }
@@ -378,7 +404,7 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
         "config",
         "validate"
     );
-    HttpRequest httpRequest = this.httpRequestFactory.buildPutRequest(url, new JsonHttpContent(jsonFactory, config));
+    HttpRequest httpRequest = this.httpRequestFactory.buildPutRequest(url, new JsonHttpContent(JSON_FACTORY, config));
     return parseAs(httpRequest, ValidateResponse.class);
   }
 
@@ -388,4 +414,14 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
     return parseAs(httpRequest, ServerInfo.class);
   }
 
+
+  @Override
+  public void close() throws Exception {
+    if (shutdownExecutorServiceOnClose) {
+      this.executorService.shutdown();
+    }
+    if (shutdownTransportOnClose) {
+      this.httpTransport.shutdown();
+    }
+  }
 }
