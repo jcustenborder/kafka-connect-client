@@ -32,6 +32,7 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.JsonObjectParser;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,7 +85,9 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
       httpRequest.getHeaders().setAcceptEncoding(null);
       httpRequest.setSuppressUserAgentSuffix(true);
       httpRequest.getHeaders().setUserAgent("kafka-connect-client");
-      httpRequest.getHeaders().setBasicAuthentication(username, password);
+      if (!Strings.isNullOrEmpty(username)) {
+        httpRequest.getHeaders().setBasicAuthentication(username, password);
+      }
     });
 
   }
