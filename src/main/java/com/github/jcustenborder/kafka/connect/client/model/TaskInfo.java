@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,27 +15,17 @@
  */
 package com.github.jcustenborder.kafka.connect.client.model;
 
-import com.google.api.client.util.Key;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.immutables.value.Value;
 
-import java.util.List;
+@Value.Style(jdkOnly = true)
+@Value.Immutable
+@JsonDeserialize(as = ImmutableTaskInfo.class)
+public interface TaskInfo {
+  @JsonProperty("connector")
+  String connector();
 
-public class ConnectorStatusResponse {
-  @Key("name")
-  String name;
-  @Key("connector")
-  ConnectorState connector;
-  @Key("tasks")
-  List<TaskStatusResponse> tasks;
-
-  public String name() {
-    return this.name;
-  }
-
-  public ConnectorState connector() {
-    return this.connector;
-  }
-
-  public List<TaskStatusResponse> tasks() {
-    return this.tasks;
-  }
+  @JsonProperty("task")
+  Integer task();
 }

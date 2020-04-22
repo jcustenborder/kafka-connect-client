@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,37 +15,19 @@
  */
 package com.github.jcustenborder.kafka.connect.client.model;
 
-import com.google.api.client.util.Key;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.List;
-import java.util.Map;
+import javax.annotation.Nullable;
 
-public class GetConnectorResponse {
-  @Key("name")
-  String name;
 
-  @Key("config")
-  Map<String, String> config;
+public interface WorkerStatus {
+  @JsonProperty("state")
+  State state();
 
-  @Key("tasks")
-  List<CreateOrUpdateConnectorResponse.Task> tasks;
+  @JsonProperty("worker_id")
+  String workerID();
 
-  @Key("type")
-  ConnectorType type;
-
-  public String name() {
-    return this.name;
-  }
-
-  public Map<String, String> config() {
-    return this.config;
-  }
-
-  public List<CreateOrUpdateConnectorResponse.Task> tasks() {
-    return this.tasks;
-  }
-
-  public ConnectorType type() {
-    return this.type;
-  }
+  @Nullable
+  @JsonProperty("trace")
+  String trace();
 }

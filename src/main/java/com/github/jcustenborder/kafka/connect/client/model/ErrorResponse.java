@@ -19,19 +19,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.immutables.value.Value;
 
-/**
- * Representation of a connector plugin.
- */
-@Value.Style(jdkOnly = true)
 @Value.Immutable
-@JsonDeserialize(as = ImmutableConnectorPlugin.class)
-public interface ConnectorPlugin {
-  @JsonProperty("class")
-  String className();
+@Value.Style(jdkOnly = true)
+@JsonDeserialize(as = ImmutableErrorResponse.class)
+public interface ErrorResponse {
+  @JsonProperty("error_code")
+  int errorCode();
 
-  @JsonProperty("type")
-  String type();
-
-  @JsonProperty("version")
-  String version();
+  @JsonProperty("message")
+  String message();
 }

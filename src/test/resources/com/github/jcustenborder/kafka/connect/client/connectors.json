@@ -1,0 +1,21 @@
+{
+  "requests" : [ {
+    "metadata": {
+      "headers": {
+        "Accept": "application/json"
+      },
+      "method": "GET",
+      "path": "/connectors"
+    },
+    "body" : null
+  } ],
+  "responses" : [ {
+    "metadata": {
+      "statusCode" : 200,
+      "headers" : {
+        "Content-Type" : "application/json"
+      }
+    },
+    "body" : [ "my-jdbc-source", "my-hdfs-sink" ]
+  } ]
+}

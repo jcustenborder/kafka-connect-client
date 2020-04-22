@@ -19,19 +19,18 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.immutables.value.Value;
 
-/**
- * Representation of a connector plugin.
- */
+import java.util.List;
+
 @Value.Style(jdkOnly = true)
 @Value.Immutable
-@JsonDeserialize(as = ImmutableConnectorPlugin.class)
-public interface ConnectorPlugin {
-  @JsonProperty("class")
-  String className();
+@JsonDeserialize(as = ImmutableConnectorStatus.class)
+public interface ConnectorStatus {
+  @JsonProperty("name")
+  String name();
 
-  @JsonProperty("type")
-  String type();
+  @JsonProperty("connector")
+  ConnectorState connector();
 
-  @JsonProperty("version")
-  String version();
+  @JsonProperty("tasks")
+  List<TaskStatus> tasks();
 }

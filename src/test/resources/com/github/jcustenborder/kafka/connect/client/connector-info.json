@@ -1,0 +1,45 @@
+{
+  "requests" : [ {
+    "body" : null,
+    "metadata" : {
+      "headers" : {
+        "Accept" : "application/json"
+      },
+      "method" : "GET",
+      "path" : "/connectors/hdfs-sink-connector"
+    }
+  } ],
+  "responses" : [ {
+    "metadata" : {
+      "headers" : {
+        "Accept" : "application/json"
+      },
+      "statusCode" : 200
+    },
+    "error" : null,
+    "body" : {
+      "name" : "hdfs-sink-connector",
+      "config" : {
+        "connector.class" : "io.confluent.connect.hdfs.HdfsSinkConnector",
+        "tasks.max" : "10",
+        "topics" : "test-topic",
+        "hdfs.url" : "hdfs://fakehost:9000",
+        "hadoop.conf.dir" : "/opt/hadoop/conf",
+        "hadoop.home" : "/opt/hadoop",
+        "flush.size" : "100",
+        "rotate.interval.ms" : "1000"
+      },
+      "tasks" : [ {
+        "connector" : "hdfs-sink-connector",
+        "task" : 1
+      }, {
+        "connector" : "hdfs-sink-connector",
+        "task" : 2
+      }, {
+        "connector" : "hdfs-sink-connector",
+        "task" : 3
+      } ],
+      "type" : null
+    }
+  } ]
+}

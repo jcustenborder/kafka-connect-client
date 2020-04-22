@@ -17,24 +17,24 @@
 version: "2"
 services:
   zookeeper:
-    image: confluentinc/cp-zookeeper:5.2.1
+    image: confluentinc/cp-zookeeper:5.4.0
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
   kafka:
-    image: confluentinc/cp-kafka:5.2.1
+    image: confluentinc/cp-kafka:5.4.0
     depends_on:
       - zookeeper
     environment:
       KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
       KAFKA_ADVERTISED_LISTENERS: "plaintext://kafka:9092"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-  kafka-connect:
-    image: confluentinc/cp-kafka-connect:5.2.1
+  connect:
+    image: confluentinc/cp-kafka-connect:5.4.0
     depends_on:
       - kafka
       - zookeeper
     ports:
-      - "8083"
+      - "8083:8083"
     environment:
       CONNECT_BOOTSTRAP_SERVERS: "kafka:9092"
       CONNECT_GROUP_ID: "testing"

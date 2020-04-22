@@ -1,0 +1,24 @@
+{
+  "requests" : [ {
+    "metadata" : {
+      "headers" : {
+        "Accept" : "application/json"
+      },
+      "method" : "GET",
+      "path" : "/connectors/hdfs-sink-connector/tasks/1/status"
+    }
+  } ],
+  "responses" : [ {
+    "metadata" : {
+      "headers" : {
+        "Accept" : "application/json"
+      },
+      "statusCode" : 200
+    },
+    "body" : {
+      "state" : "RUNNING",
+      "worker_id" : "192.168.86.101:8083",
+      "id" : 1
+    }
+  } ]
+}

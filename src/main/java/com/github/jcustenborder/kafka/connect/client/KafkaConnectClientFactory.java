@@ -15,97 +15,33 @@
  */
 package com.github.jcustenborder.kafka.connect.client;
 
-import com.google.api.client.http.GenericUrl;
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.javanet.NetHttpTransport;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
 
 public class KafkaConnectClientFactory {
-  private HttpTransport httpTransport = new NetHttpTransport();
-  private GenericUrl baseUrl = new GenericUrl("http://localhost:8083");
-  private ExecutorService executorService = Executors.newSingleThreadExecutor();
-  private boolean shutdownTransportOnClose = true;
-  private boolean shutdownExecutorServiceOnClose = true;
+  private HttpUrl.Builder baseUrlBuilder = new HttpUrl.Builder()
+      .host("localhost")
+      .port(8083)
+      .scheme("http");
+
   private String username;
   private String password;
-
-  /**
-   * ExecutorService for all requests.
-   * @return
-   */
-  public ExecutorService executorService() {
-    return this.executorService;
-  }
-
-  /**
-   * Set the ExecutorService for the client.
-   * @param executorService
-   */
-  public void executorService(ExecutorService executorService) {
-    this.executorService = executorService;
-  }
-
-  /**
-   * HTTP transport to use
-   * @return
-   */
-  public HttpTransport httpTransport() {
-    return this.httpTransport;
-  }
-
-  /**
-   * Configure the HttpTransport
-   * @param httpTransport
-   */
-  public void httpTransport(HttpTransport httpTransport) {
-    this.httpTransport = httpTransport;
-  }
-
-  /**
-   * Flag to determine if the transport should be shutdown when close is called on the client.
-   * @return
-   */
-  public boolean shutdownTransportOnClose() {
-    return this.shutdownTransportOnClose;
-  }
-
-  /**
-   * Flag to determine if the transport should be shutdown when close is called on the client.
-   * @param shutdownTransportOnClose
-   */
-  public void shutdownTransportOnClose(boolean shutdownTransportOnClose) {
-    this.shutdownTransportOnClose = shutdownTransportOnClose;
-  }
-
-  /**
-   * Flag to determine if the ExecutorService should be shutdown when close is called on the client.
-   * @return
-   */
-  public boolean shutdownExecutorServiceOnClose() {
-    return this.shutdownExecutorServiceOnClose;
-  }
-
-  /**
-   * Flag to determine if the ExecutorService should be shutdown when close is called on the client.
-   * @param shutdownExecutorServiceOnClose
-   */
-  public void shutdownExecutorServiceOnClose(boolean shutdownExecutorServiceOnClose) {
-    this.shutdownExecutorServiceOnClose = shutdownExecutorServiceOnClose;
-  }
+  private ObjectMapper objectMapper = new ObjectMapper();
 
   private KafkaConnectClientImpl createClientImpl() {
-    return new KafkaConnectClientImpl(
-        executorService, this.baseUrl,
-        httpTransport,
-        shutdownTransportOnClose,
-        shutdownExecutorServiceOnClose,
-        username, password);
+    OkHttpClient client = new OkHttpClient.Builder()
+        .addInterceptor(new LoggingInterceptor())
+        .addInterceptor(new RebalancingInterceptor(10))
+        .build();
+    HttpUrl httpUrl = this.baseUrlBuilder.build();
+    return new KafkaConnectClientImpl(httpUrl, client,
+        username, password, objectMapper);
   }
 
   /**
    * Method is used to create an async binding.
+   *
    * @return
    */
   public AsyncKafkaConnectClient createAsyncClient() {
@@ -114,6 +50,7 @@ public class KafkaConnectClientFactory {
 
   /**
    * Method is used to create a kafka connect client.
+   *
    * @return
    */
   public KafkaConnectClient createClient() {
@@ -122,57 +59,36 @@ public class KafkaConnectClientFactory {
 
   /**
    * The host running the Kafka Connect api.
+   *
    * @param host
    */
-  public void host(String host) {
-    this.baseUrl.setHost(host);
-  }
-
-  /**
-   * The host running the Kafka Connect api.
-   * @return
-   */
-  public String host() {
-    return this.baseUrl.getHost();
+  public KafkaConnectClientFactory host(String host) {
+    this.baseUrlBuilder.host(host);
+    return this;
   }
 
   /**
    * The port on the host running the Kafka Connect api.
+   *
    * @param port
    */
-  public void port(int port) {
-    this.baseUrl.setPort(port);
+  public KafkaConnectClientFactory port(int port) {
+    this.baseUrlBuilder.port(port);
+    return this;
   }
 
-  /**
-   * The port on the host running the Kafka Connect api.
-   * @return
-   */
-  public int port() {
-    return this.baseUrl.getPort();
+  public KafkaConnectClientFactory scheme(String scheme) {
+    this.baseUrlBuilder.scheme(scheme);
+    return this;
   }
 
-  public void scheme(String scheme) {
-    this.baseUrl.setScheme(scheme);
-  }
-
-  public String scheme() {
-    return this.baseUrl.getScheme();
-  }
-
-  public String username() {
-    return this.username;
-  }
-
-  public void username(String username) {
+  public KafkaConnectClientFactory username(String username) {
     this.username = username;
+    return this;
   }
 
-  public String password() {
-    return this.password;
-  }
-
-  public void password(String password) {
+  public KafkaConnectClientFactory password(String password) {
     this.password = password;
+    return this;
   }
 }

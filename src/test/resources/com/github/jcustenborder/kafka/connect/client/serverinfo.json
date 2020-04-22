@@ -1,0 +1,29 @@
+{
+  "requests": [
+    {
+      "metadata": {
+        "headers": {
+          "Accept": "application/json"
+        },
+        "method": "GET",
+        "path": "/"
+      },
+      "body": null
+    }
+  ],
+  "responses": [
+    {
+      "metadata": {
+        "statusCode": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "body": {
+        "version": "5.5.0",
+        "commit": "e5741b90cde98052",
+        "kafka_cluster_id": "I4ZmrWqfT2e-upky_4fdPA"
+      }
+    }
+  ]
+}

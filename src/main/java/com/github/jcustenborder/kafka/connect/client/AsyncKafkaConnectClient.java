@@ -16,14 +16,16 @@
 package com.github.jcustenborder.kafka.connect.client;
 
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorPlugin;
-import com.github.jcustenborder.kafka.connect.client.model.ConnectorStatusResponse;
-import com.github.jcustenborder.kafka.connect.client.model.CreateOrUpdateConnectorResponse;
-import com.github.jcustenborder.kafka.connect.client.model.GetConnectorResponse;
+import com.github.jcustenborder.kafka.connect.client.model.ConnectorStatus;
+import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorRequest;
+import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorResponse;
+import com.github.jcustenborder.kafka.connect.client.model.ConnectorInfo;
+import com.github.jcustenborder.kafka.connect.client.model.ImmutableCreateConnectorRequest;
 import com.github.jcustenborder.kafka.connect.client.model.ServerInfo;
-import com.github.jcustenborder.kafka.connect.client.model.TaskStatusResponse;
+import com.github.jcustenborder.kafka.connect.client.model.TaskConfig;
+import com.github.jcustenborder.kafka.connect.client.model.TaskStatus;
 import com.github.jcustenborder.kafka.connect.client.model.ValidateResponse;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -34,7 +36,18 @@ public interface AsyncKafkaConnectClient extends AutoCloseable {
    *
    * @return list of connector names.
    */
-  CompletableFuture<List<String>> connectorsAsync() throws IOException;
+  CompletableFuture<List<String>> connectorsAsync();
+
+  default CompletableFuture<CreateConnectorResponse> createConnectorAsync(String name, Map<String, String> config) {
+    return createConnectorAsync(
+        ImmutableCreateConnectorRequest.builder()
+            .name(name)
+            .putAllConfig(config)
+            .build()
+    );
+  }
+
+  CompletableFuture<CreateConnectorResponse> createConnectorAsync(CreateConnectorRequest request);
 
   /**
    * Method is used to create a connector.
@@ -43,7 +56,7 @@ public interface AsyncKafkaConnectClient extends AutoCloseable {
    * @param config config for the connector.
    * @return Information about the created or updated connector.
    */
-  CompletableFuture<CreateOrUpdateConnectorResponse> createOrUpdateAsync(String name, Map<String, String> config) throws IOException;
+  CompletableFuture<ConnectorInfo> createOrUpdateAsync(String name, Map<String, String> config);
 
   /**
    * Method is used to return information about the connector.
@@ -51,7 +64,7 @@ public interface AsyncKafkaConnectClient extends AutoCloseable {
    * @param name name of the connector.
    * @return Information about the requested connector.
    */
-  CompletableFuture<GetConnectorResponse> getAsync(String name) throws IOException;
+  CompletableFuture<ConnectorInfo> infoAsync(String name);
 
   /**
    * Method is used to retrieve the configuration for a connector.
@@ -59,7 +72,7 @@ public interface AsyncKafkaConnectClient extends AutoCloseable {
    * @param name name of the connector.
    * @return map of the configuration.
    */
-  CompletableFuture<Map<String, String>> configAsync(String name) throws IOException;
+  CompletableFuture<Map<String, String>> configAsync(String name);
 
 
   /**
@@ -67,28 +80,28 @@ public interface AsyncKafkaConnectClient extends AutoCloseable {
    *
    * @param name name of the connector.
    */
-  CompletableFuture<Void> deleteAsync(String name) throws IOException;
+  CompletableFuture<Void> deleteAsync(String name);
 
   /**
    * Method is used to restart a connector
    *
    * @param name name of the connector.
    */
-  CompletableFuture<Void> restartAsync(String name) throws IOException;
+  CompletableFuture<Void> restartAsync(String name);
 
   /**
    * Method is used to pause a connector
    *
    * @param name name of the connector.
    */
-  CompletableFuture<Void> pauseAsync(String name) throws IOException;
+  CompletableFuture<Void> pauseAsync(String name);
 
   /**
    * Method is used to pause a connector
    *
    * @param name name of the connector.
    */
-  CompletableFuture<Void> resumeAsync(String name) throws IOException;
+  CompletableFuture<Void> resumeAsync(String name);
 
   /**
    * Method is used to return the status for a connector.
@@ -96,7 +109,7 @@ public interface AsyncKafkaConnectClient extends AutoCloseable {
    * @param name name of the connector.
    * @return status of the requested connector
    */
-  CompletableFuture<ConnectorStatusResponse> statusAsync(String name) throws IOException;
+  CompletableFuture<ConnectorStatus> statusAsync(String name);
 
   /**
    * Method is  used to return state of a task.
@@ -105,7 +118,7 @@ public interface AsyncKafkaConnectClient extends AutoCloseable {
    * @param taskId taskId  to restart
    * @return status of the requested task
    */
-  CompletableFuture<TaskStatusResponse> statusAsync(String name, int taskId) throws IOException;
+  CompletableFuture<TaskStatus> statusAsync(String name, int taskId);
 
   /**
    * Method is used to restart a single task.
@@ -113,14 +126,14 @@ public interface AsyncKafkaConnectClient extends AutoCloseable {
    * @param name   name of the connector.
    * @param taskId taskId to restart
    */
-  CompletableFuture<Void> restartAsync(String name, int taskId) throws IOException;
+  CompletableFuture<Void> restartAsync(String name, int taskId);
 
   /**
    * Method is used to return the available connector plugins.
    *
    * @return list of connector plugins available on the worker.
    */
-  CompletableFuture<List<ConnectorPlugin>> connectorPluginsAsync() throws IOException;
+  CompletableFuture<List<ConnectorPlugin>> connectorPluginsAsync();
 
   /**
    * Method is used to validate the configuration of a connector.
@@ -129,12 +142,14 @@ public interface AsyncKafkaConnectClient extends AutoCloseable {
    * @param config config to test
    * @return Validation response
    */
-  CompletableFuture<ValidateResponse> validateAsync(String name, Map<String, String> config) throws IOException;
+  CompletableFuture<ValidateResponse> validateAsync(String name, Map<String, String> config);
 
   /**
    * Method is used to return the information about the connect worker.
    *
    * @return returns metadata about the connect worker.
    */
-  CompletableFuture<ServerInfo> serverInfoAsync() throws IOException;
+  CompletableFuture<ServerInfo> serverInfoAsync();
+
+  CompletableFuture<List<TaskConfig>> taskConfigsAsync(String name);
 }

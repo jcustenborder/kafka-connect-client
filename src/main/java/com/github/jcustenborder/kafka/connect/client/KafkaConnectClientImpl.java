@@ -15,106 +15,91 @@
  */
 package com.github.jcustenborder.kafka.connect.client;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.jcustenborder.kafka.connect.client.model.ConnectorInfo;
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorPlugin;
-import com.github.jcustenborder.kafka.connect.client.model.ConnectorStatusResponse;
-import com.github.jcustenborder.kafka.connect.client.model.CreateOrUpdateConnectorResponse;
-import com.github.jcustenborder.kafka.connect.client.model.GetConnectorResponse;
+import com.github.jcustenborder.kafka.connect.client.model.ConnectorStatus;
+import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorRequest;
+import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorResponse;
 import com.github.jcustenborder.kafka.connect.client.model.ServerInfo;
-import com.github.jcustenborder.kafka.connect.client.model.TaskStatusResponse;
+import com.github.jcustenborder.kafka.connect.client.model.TaskConfig;
+import com.github.jcustenborder.kafka.connect.client.model.TaskStatus;
 import com.github.jcustenborder.kafka.connect.client.model.ValidateResponse;
-import com.google.api.client.http.GenericUrl;
-import com.google.api.client.http.HttpRequest;
-import com.google.api.client.http.HttpRequestFactory;
-import com.google.api.client.http.HttpResponse;
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.json.JsonHttpContent;
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.JsonObjectParser;
-import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.client.util.Preconditions;
-import com.google.common.base.Strings;
-import com.google.common.reflect.TypeToken;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectClient {
   private static final Logger log = LoggerFactory.getLogger(KafkaConnectClientImpl.class);
-  private static final JsonFactory JSON_FACTORY = new JacksonFactory();
+  static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+  static final RequestBody EMPTY = RequestBody.create(null, new byte[]{});
+  private final HttpUrl baseUrl;
+  private final OkHttpClient client;
+  private final ObjectMapper objectMapper;
 
-  static {
-    SLF4JLogBridge.init();
-  }
+  static final TypeReference<Map<String, String>> CONFIG_TYPE = new TypeReference<Map<String, String>>() {
+  };
+  static final TypeReference<List<String>> CONNECTORS_TYPE = new TypeReference<List<String>>() {
+  };
+  static final TypeReference<List<TaskConfig>> TASKCONFIG_TYPE = new TypeReference<List<TaskConfig>>() {
+  };
+  static final TypeReference<List<ConnectorPlugin>> CONNECTOR_PLUGIN_TYPE = new TypeReference<List<ConnectorPlugin>>() {
+  };
 
-  private final ExecutorService executorService;
-  private final GenericUrl baseUrl;
-  private final HttpTransport httpTransport;
-  private final HttpRequestFactory httpRequestFactory;
-  private final boolean shutdownTransportOnClose;
-  private final boolean shutdownExecutorServiceOnClose;
 
   KafkaConnectClientImpl(
-      ExecutorService executorService,
-      GenericUrl baseUrl,
-      HttpTransport httpTransport,
-      boolean shutdownTransportOnClose,
-      boolean shutdownExecutorServiceOnClose,
+      HttpUrl baseUrl,
+      OkHttpClient client,
       String username,
-      String password
-  ) {
-    this.executorService = executorService;
+      String password,
+      ObjectMapper objectMapper) {
     this.baseUrl = baseUrl;
-    this.httpTransport = httpTransport;
-    this.shutdownTransportOnClose = shutdownTransportOnClose;
-    this.shutdownExecutorServiceOnClose = shutdownExecutorServiceOnClose;
-    this.httpRequestFactory = this.httpTransport.createRequestFactory(httpRequest -> {
-      httpRequest.setFollowRedirects(false);
-      httpRequest.setCurlLoggingEnabled(true);
-      httpRequest.setParser(new JsonObjectParser(JSON_FACTORY));
-      httpRequest.setThrowExceptionOnExecuteError(false);
-      httpRequest.getHeaders().setAcceptEncoding(null);
-      httpRequest.setSuppressUserAgentSuffix(true);
-      httpRequest.getHeaders().setUserAgent("kafka-connect-client");
-      if (!Strings.isNullOrEmpty(username)) {
-        httpRequest.getHeaders().setBasicAuthentication(username, password);
-      }
-    });
-
+    this.client = client;
+    this.objectMapper = objectMapper;
   }
 
-  GenericUrl connectorsUrl(String... parts) {
-    GenericUrl result = this.baseUrl.clone();
-    List<String> pathParts = new ArrayList<>(2 + parts.length);
-    pathParts.add("");
-    pathParts.add("connectors");
-    pathParts.addAll(Arrays.asList(parts));
-    result.setPathParts(pathParts);
-    return result;
+  static HttpUrl addPathSegments(HttpUrl baseUrl, Iterable<String> parts) {
+    HttpUrl.Builder builder = baseUrl.newBuilder();
+    for (String part : parts) {
+      builder = builder.addPathSegment(part);
+    }
+    return builder.build();
   }
 
-  GenericUrl connectorsPluginsUrl(String... parts) {
-    GenericUrl result = this.baseUrl.clone();
-    List<String> pathParts = new ArrayList<>(2 + parts.length);
-    pathParts.add("");
-    pathParts.add("connector-plugins");
-    pathParts.addAll(Arrays.asList(parts));
-    result.setPathParts(pathParts);
-    return result;
+  HttpUrl baseUrl(String... parts) {
+    return addPathSegments(this.baseUrl, Arrays.asList(parts));
   }
 
+  HttpUrl connectorsUrl(String... parts) {
+    List<String> segments = new ArrayList<>();
+    segments.add("connectors");
+    segments.addAll(Arrays.asList(parts));
+    return addPathSegments(this.baseUrl, segments);
+  }
 
-  static final TypeToken<List<String>> CONNECTORS_TYPE = new TypeToken<List<String>>() {
-  };
+  HttpUrl connectorsPluginsUrl(String... parts) {
+    return baseUrl("connector-plugins");
+  }
+
 
   static <T> T get(Future<T> future) throws IOException {
     try {
@@ -131,9 +116,10 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
   }
 
   void checkConnectorConfig(Map<String, String> config) {
-    Preconditions.checkNotNull("config", "config cannot be null");
-    Preconditions.checkState(config.containsKey("connector.class"), "connector.class must be specified.");
-    Preconditions.checkState(config.containsKey("tasks.max"), "tasks.max must be specified.");
+    //TODO: Comeback and do some validation.
+//    Preconditions.checkNotNull("config", "config cannot be null");
+//    Preconditions.checkState(config.containsKey("connector.class"), "connector.class must be specified.");
+//    Preconditions.checkState(config.containsKey("tasks.max"), "tasks.max must be specified.");
   }
 
   @Override
@@ -142,16 +128,21 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
     return get(future);
   }
 
+  @Override
+  public CreateConnectorResponse createConnector(CreateConnectorRequest request) throws IOException {
+    return get(createConnectorAsync(request));
+  }
+
 
   @Override
-  public CreateOrUpdateConnectorResponse createOrUpdate(String name, Map<String, String> config) throws IOException {
-    CompletableFuture<CreateOrUpdateConnectorResponse> future = createOrUpdateAsync(name, config);
+  public ConnectorInfo createOrUpdate(String name, Map<String, String> config) throws IOException {
+    CompletableFuture<ConnectorInfo> future = createOrUpdateAsync(name, config);
     return get(future);
   }
 
   @Override
-  public GetConnectorResponse get(String name) throws IOException {
-    CompletableFuture<GetConnectorResponse> future = getAsync(name);
+  public ConnectorInfo info(String name) throws IOException {
+    CompletableFuture<ConnectorInfo> future = infoAsync(name);
     return get(future);
   }
 
@@ -187,14 +178,14 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
   }
 
   @Override
-  public ConnectorStatusResponse status(String name) throws IOException {
-    CompletableFuture<ConnectorStatusResponse> future = statusAsync(name);
+  public ConnectorStatus status(String name) throws IOException {
+    CompletableFuture<ConnectorStatus> future = statusAsync(name);
     return get(future);
   }
 
   @Override
-  public TaskStatusResponse status(String name, int taskId) throws IOException {
-    CompletableFuture<TaskStatusResponse> future = statusAsync(name, taskId);
+  public TaskStatus status(String name, int taskId) throws IOException {
+    CompletableFuture<TaskStatus> future = statusAsync(name, taskId);
     return get(future);
   }
 
@@ -204,8 +195,6 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
     get(future);
   }
 
-  static final TypeToken<List<ConnectorPlugin>> CONNECTOR_PLUGIN_TYPE = new TypeToken<List<ConnectorPlugin>>() {
-  };
 
   @Override
   public List<ConnectorPlugin> connectorPlugins() throws IOException {
@@ -225,206 +214,292 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
     return get(future);
   }
 
-  private void checkAndRaiseException(HttpResponse httpResponse) throws IOException {
+  <T> T parseAs(Response response, Class<T> cls) throws IOException {
+//    checkAndRaiseException(response);
+    String body = response.body().string();
+    if (log.isTraceEnabled()) {
+      log.trace("parseAs() - response: \n{}", body);
+    }
+    return this.objectMapper.readValue(body, cls);
+  }
+
+  <T> T parseAs(Response response, TypeReference<T> token) throws IOException {
+//    checkAndRaiseException(response);
+
+
+    String body = response.body().string();
+    if (log.isTraceEnabled()) {
+      log.trace("parseAs() - response: \n{}", body);
+    }
+    return this.objectMapper.readValue(body, token);
+  }
+
+  private void checkAndRaiseException(Response httpResponse) throws IOException {
     log.trace(
         "checkAndRaiseException() - statusCode = '{}' successStatusCode = '{}'",
-        httpResponse.getStatusCode(),
-        httpResponse.isSuccessStatusCode()
+        httpResponse.code(),
+        httpResponse.isSuccessful()
     );
-    if (!httpResponse.isSuccessStatusCode()) {
-      KafkaConnectException ex = httpResponse.parseAs(KafkaConnectException.class);
+    if (!httpResponse.isSuccessful()) {
+      KafkaConnectException ex = parseAs(httpResponse, KafkaConnectException.class);
       throw ex;
     }
   }
 
-  private CompletableFuture<Void> parseNoResponse(HttpRequest request) throws IOException {
-    CompletableFuture<Void> futureResult = new CompletableFuture<>();
-    Future<HttpResponse> responseFuture = request.executeAsync(this.executorService);
-    CompletableFuture.runAsync(() -> {
-      try {
-        log.trace("parseNoResponse() - url = '{}'", request.getUrl());
-        HttpResponse httpResponse = responseFuture.get();
-        checkAndRaiseException(httpResponse);
+  private CompletableFuture<Void> executeNoResponse(Request request) {
+    final CompletableFuture<Void> futureResult = new CompletableFuture<>();
+    this.client.newCall(request).enqueue(new Callback() {
+      @Override
+      public void onFailure(@NotNull Call call, @NotNull IOException e) {
+        futureResult.completeExceptionally(e);
+      }
+
+      @Override
+      public void onResponse(@NotNull Call call, @NotNull Response response) {
         futureResult.complete(null);
-      } catch (InterruptedException e) {
-        futureResult.completeExceptionally(e);
-      } catch (ExecutionException e) {
-        futureResult.completeExceptionally(e.getCause());
-      } catch (Throwable ex) {
-        futureResult.completeExceptionally(ex);
       }
-    }, this.executorService);
+    });
     return futureResult;
   }
 
-  private <T> CompletableFuture<T> parseAs(HttpRequest request, TypeToken<T> token) {
-    CompletableFuture<T> futureResult = new CompletableFuture<>();
-    Future<HttpResponse> responseFuture = request.executeAsync(this.executorService);
-    CompletableFuture.runAsync(() -> {
-      try {
-        log.trace("parseAs() - url = '{}'", request.getUrl());
-        HttpResponse httpResponse = responseFuture.get();
-        checkAndRaiseException(httpResponse);
-        Type type = token.getType();
-        Object result = httpResponse.parseAs(type);
-        futureResult.complete((T) result);
-      } catch (InterruptedException e) {
+  private <T> CompletableFuture<T> executeRequest(Request request, TypeReference<T> token) {
+    final CompletableFuture<T> futureResult = new CompletableFuture<>();
+    this.client.newCall(request).enqueue(new Callback() {
+      @Override
+      public void onFailure(@NotNull Call call, @NotNull IOException e) {
         futureResult.completeExceptionally(e);
-      } catch (ExecutionException e) {
-        futureResult.completeExceptionally(e.getCause());
-      } catch (Throwable ex) {
-        futureResult.completeExceptionally(ex);
       }
-    }, this.executorService);
 
-
+      @Override
+      public void onResponse(@NotNull Call call, @NotNull Response response) {
+        try {
+          log.trace("executeRequest() - request = '{}' response = '{}'", request, response);
+          T result = parseAs(response, token);
+          futureResult.complete(result);
+        } catch (Exception ex) {
+          futureResult.completeExceptionally(ex);
+        }
+      }
+    });
     return futureResult;
   }
 
-  private <T> CompletableFuture<T> parseAs(HttpRequest request, Class<T> cls) {
-    CompletableFuture<T> futureResult = new CompletableFuture<>();
-    Future<HttpResponse> responseFuture = request.executeAsync(this.executorService);
-    CompletableFuture.runAsync(() -> {
-      try {
-        log.trace("parseAs() - url = '{}'", request.getUrl());
-        HttpResponse httpResponse = responseFuture.get();
-        checkAndRaiseException(httpResponse);
-        Object result = httpResponse.parseAs(cls);
-        futureResult.complete((T) result);
-      } catch (InterruptedException e) {
+  private <T> CompletableFuture<T> executeRequest(Request request, Class<T> cls) {
+    final CompletableFuture<T> futureResult = new CompletableFuture<>();
+    this.client.newCall(request).enqueue(new Callback() {
+      @Override
+      public void onFailure(@NotNull Call call, @NotNull IOException e) {
+        log.warn("executeRequest() - Request failure. request = '{}'", request, e);
         futureResult.completeExceptionally(e);
-      } catch (ExecutionException e) {
-        futureResult.completeExceptionally(e.getCause());
-      } catch (Throwable ex) {
-        futureResult.completeExceptionally(ex);
       }
-    }, this.executorService);
 
-
+      @Override
+      public void onResponse(@NotNull Call call, @NotNull Response response) {
+        try {
+          log.trace("executeRequest() - request = '{}' response = '{}'", request, response);
+          T result = parseAs(response, cls);
+          futureResult.complete(result);
+        } catch (Exception ex) {
+          futureResult.completeExceptionally(ex);
+        }
+      }
+    });
     return futureResult;
+  }
+
+  Request.Builder newBuilder() {
+    return new Request.Builder();
   }
 
   @Override
-  public CompletableFuture<List<String>> connectorsAsync() throws IOException {
-    GenericUrl url = connectorsUrl();
+  public CompletableFuture<List<String>> connectorsAsync() {
+    HttpUrl url = connectorsUrl();
     log.trace("connectorsAsync() - url = '{}'", url);
-    HttpRequest request = this.httpRequestFactory.buildGetRequest(url);
-    CompletableFuture<List<String>> result = parseAs(request, CONNECTORS_TYPE);
+
+    Request request = newBuilder()
+        .url(url)
+        .get()
+        .build();
+    CompletableFuture<List<String>> result = executeRequest(request, CONNECTORS_TYPE);
     return result;
   }
 
   @Override
-  public CompletableFuture<CreateOrUpdateConnectorResponse> createOrUpdateAsync(String name, Map<String, String> config) throws IOException {
-    Preconditions.checkNotNull(name, "name cannot be null");
+  public CompletableFuture<CreateConnectorResponse> createConnectorAsync(CreateConnectorRequest request) {
+    HttpUrl url = connectorsUrl();
+    log.trace("createConnector() url = '{}' request = '{}'", url, request);
+    Request httpRequest = newBuilder()
+        .url(url)
+        .post(body(request))
+        .build();
+    return executeRequest(httpRequest, CreateConnectorResponse.class);
+  }
+
+  protected RequestBody body(Object o) {
+    try {
+      byte[] body = this.objectMapper.writeValueAsBytes(o);
+      RequestBody requestBody = RequestBody.create(body, JSON);
+      return requestBody;
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  @Override
+  public CompletableFuture<ConnectorInfo> createOrUpdateAsync(String name, Map<String, String> config) {
+//    Preconditions.checkNotNull(name, "name cannot be null");
     checkConnectorConfig(config);
-    GenericUrl connectorUrl = connectorsUrl(name, "config");
+    HttpUrl connectorUrl = connectorsUrl(name, "config");
     log.trace("createOrUpdateAsync() - url = '{}'", connectorUrl);
-    JsonHttpContent content = new JsonHttpContent(JSON_FACTORY, config);
-    HttpRequest httpRequest = this.httpRequestFactory.buildPutRequest(connectorUrl, content);
-    return parseAs(httpRequest, CreateOrUpdateConnectorResponse.class);
+    Request request = newBuilder()
+        .url(connectorUrl)
+        .put(body(config))
+        .build();
+    return executeRequest(request, ConnectorInfo.class);
   }
 
   @Override
-  public CompletableFuture<GetConnectorResponse> getAsync(String name) throws IOException {
-    Preconditions.checkNotNull(name, "name cannot be null");
-    GenericUrl connectorUrl = connectorsUrl(name);
-    HttpRequest httpRequest = this.httpRequestFactory.buildGetRequest(connectorUrl);
-    return parseAs(httpRequest, GetConnectorResponse.class);
+  public CompletableFuture<ConnectorInfo> infoAsync(String name) {
+//    Preconditions.checkNotNull(name, "name cannot be null");
+    HttpUrl connectorUrl = connectorsUrl(name);
+    Request request = newBuilder()
+        .get()
+        .url(connectorUrl)
+        .build();
+    return executeRequest(request, ConnectorInfo.class);
   }
 
-  static final TypeToken<Map<String, String>> CONFIG_TYPE = new TypeToken<Map<String, String>>() {
-  };
 
   @Override
-  public CompletableFuture<Map<String, String>> configAsync(String name) throws IOException {
-    GenericUrl url = connectorsUrl(name, "config");
+  public CompletableFuture<Map<String, String>> configAsync(String name) {
+    HttpUrl url = connectorsUrl(name, "config");
     log.trace("connectors() - url = '{}'", url);
-    HttpRequest request = this.httpRequestFactory.buildGetRequest(url);
-    return parseAs(request, CONFIG_TYPE);
+    Request request = newBuilder()
+        .url(url)
+        .get()
+        .build();
+    return executeRequest(request, CONFIG_TYPE);
   }
 
   @Override
-  public CompletableFuture<Void> deleteAsync(String name) throws IOException {
-    Preconditions.checkNotNull(name, "name cannot be null");
-    GenericUrl connectorUrl = connectorsUrl(name);
-    HttpRequest httpRequest = this.httpRequestFactory.buildDeleteRequest(connectorUrl);
-    return parseNoResponse(httpRequest);
+  public CompletableFuture<Void> deleteAsync(String name) {
+//    Preconditions.checkNotNull(name, "name cannot be null");
+    HttpUrl connectorUrl = connectorsUrl(name);
+    Request request = newBuilder()
+        .url(connectorUrl)
+        .delete()
+        .build();
+    return executeNoResponse(request);
   }
 
   @Override
-  public CompletableFuture<Void> restartAsync(String name) throws IOException {
-    GenericUrl connectorUrl = connectorsUrl(name, "restart");
-    HttpRequest httpRequest = this.httpRequestFactory.buildPostRequest(connectorUrl, null);
-    return parseNoResponse(httpRequest);
+  public CompletableFuture<Void> restartAsync(String name) {
+    HttpUrl connectorUrl = connectorsUrl(name, "restart");
+    Request request = newBuilder()
+        .url(connectorUrl)
+        .post(EMPTY)
+        .build();
+    return executeNoResponse(request);
   }
 
   @Override
-  public CompletableFuture<Void> pauseAsync(String name) throws IOException {
-    GenericUrl connectorUrl = connectorsUrl(name, "pause");
-    HttpRequest httpRequest = this.httpRequestFactory.buildPutRequest(connectorUrl, null);
-    return parseNoResponse(httpRequest);
+  public CompletableFuture<Void> pauseAsync(String name) {
+    HttpUrl connectorUrl = connectorsUrl(name, "pause");
+    Request request = newBuilder()
+        .url(connectorUrl)
+        .put(EMPTY)
+        .build();
+    return executeNoResponse(request);
   }
 
   @Override
-  public CompletableFuture<Void> resumeAsync(String name) throws IOException {
-    GenericUrl connectorUrl = connectorsUrl(name, "resume");
-    HttpRequest httpRequest = this.httpRequestFactory.buildPutRequest(connectorUrl, null);
-    return parseNoResponse(httpRequest);
+  public CompletableFuture<Void> resumeAsync(String name) {
+    HttpUrl connectorUrl = connectorsUrl(name, "resume");
+    Request request = newBuilder()
+        .url(connectorUrl)
+        .put(EMPTY)
+        .build();
+    return executeNoResponse(request);
   }
 
   @Override
-  public CompletableFuture<ConnectorStatusResponse> statusAsync(String name) throws IOException {
-    GenericUrl connectorUrl = connectorsUrl(name, "status");
-    HttpRequest httpRequest = this.httpRequestFactory.buildGetRequest(connectorUrl);
-    return parseAs(httpRequest, ConnectorStatusResponse.class);
+  public CompletableFuture<ConnectorStatus> statusAsync(String name) {
+    HttpUrl connectorUrl = connectorsUrl(name, "status");
+    Request request = newBuilder()
+        .url(connectorUrl)
+        .build();
+    return executeRequest(request, ConnectorStatus.class);
   }
 
   @Override
-  public CompletableFuture<TaskStatusResponse> statusAsync(String name, int taskId) throws IOException {
-    GenericUrl connectorUrl = connectorsUrl(name, "tasks", Integer.toString(taskId), "status");
-    HttpRequest httpRequest = this.httpRequestFactory.buildGetRequest(connectorUrl);
-    return parseAs(httpRequest, TaskStatusResponse.class);
+  public CompletableFuture<TaskStatus> statusAsync(String name, int taskId) {
+    HttpUrl connectorUrl = connectorsUrl(name, "tasks", Integer.toString(taskId), "status");
+    Request request = newBuilder()
+        .url(connectorUrl)
+        .build();
+    return executeRequest(request, TaskStatus.class);
   }
 
   @Override
-  public CompletableFuture<Void> restartAsync(String name, int taskId) throws IOException {
-    GenericUrl connectorUrl = connectorsUrl(name, "tasks", Integer.toString(taskId), "restart");
-    HttpRequest httpRequest = this.httpRequestFactory.buildPostRequest(connectorUrl, null);
-    return parseNoResponse(httpRequest);
+  public CompletableFuture<Void> restartAsync(String name, int taskId) {
+    HttpUrl connectorUrl = connectorsUrl(name, "tasks", Integer.toString(taskId), "restart");
+    Request request = newBuilder()
+        .url(connectorUrl)
+        .post(EMPTY)
+        .build();
+    return executeNoResponse(request);
   }
 
   @Override
-  public CompletableFuture<List<ConnectorPlugin>> connectorPluginsAsync() throws IOException {
-    GenericUrl url = connectorsPluginsUrl();
-    HttpRequest httpRequest = this.httpRequestFactory.buildGetRequest(url);
-    return parseAs(httpRequest, CONNECTOR_PLUGIN_TYPE);
+  public List<TaskConfig> taskConfigs(String name) throws IOException {
+    CompletableFuture<List<TaskConfig>> future = taskConfigsAsync(name);
+    return get(future);
   }
 
   @Override
-  public CompletableFuture<ValidateResponse> validateAsync(String name, Map<String, String> config) throws IOException {
-    GenericUrl url = connectorsPluginsUrl(
+  public CompletableFuture<List<ConnectorPlugin>> connectorPluginsAsync() {
+    HttpUrl pluginsUrl = connectorsPluginsUrl();
+    Request request = newBuilder()
+        .url(pluginsUrl)
+        .build();
+    return executeRequest(request, CONNECTOR_PLUGIN_TYPE);
+  }
+
+  @Override
+  public CompletableFuture<ValidateResponse> validateAsync(String name, Map<String, String> config) {
+    HttpUrl url = connectorsPluginsUrl(
         name,
         "config",
         "validate"
     );
-    HttpRequest httpRequest = this.httpRequestFactory.buildPutRequest(url, new JsonHttpContent(JSON_FACTORY, config));
-    return parseAs(httpRequest, ValidateResponse.class);
+    Request request = newBuilder()
+        .url(url)
+        .put(body(config))
+        .build();
+    return executeRequest(request, ValidateResponse.class);
   }
 
   @Override
-  public CompletableFuture<ServerInfo> serverInfoAsync() throws IOException {
-    HttpRequest httpRequest = this.httpRequestFactory.buildGetRequest(this.baseUrl);
-    return parseAs(httpRequest, ServerInfo.class);
+  public CompletableFuture<ServerInfo> serverInfoAsync() {
+    Request request = newBuilder()
+        .url(this.baseUrl)
+        .build();
+    return executeRequest(request, ServerInfo.class);
+  }
+
+  @Override
+  public CompletableFuture<List<TaskConfig>> taskConfigsAsync(String name) {
+    HttpUrl connectorUrl = connectorsUrl(name, "tasks");
+    Request request = newBuilder()
+        .get()
+        .url(connectorUrl)
+        .build();
+    return executeRequest(request, TASKCONFIG_TYPE);
   }
 
 
   @Override
   public void close() throws Exception {
-    if (shutdownExecutorServiceOnClose) {
-      this.executorService.shutdown();
-    }
-    if (shutdownTransportOnClose) {
-      this.httpTransport.shutdown();
-    }
+
   }
 }

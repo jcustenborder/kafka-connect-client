@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,53 +15,38 @@
  */
 package com.github.jcustenborder.kafka.connect.client.model;
 
-import com.google.api.client.util.Key;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.immutables.value.Value;
 
 import java.util.List;
 
-public class ValidateResponse {
-  @Key("name")
-  String name;
-  @Key("error_count")
-  Integer errorCount;
-  @Key("groups")
-  List<String> groups;
-  @Key("configs")
-  List<ConfigElement> configs;
+@Value.Style(jdkOnly = true)
+@Value.Immutable
+@JsonDeserialize(as = ImmutableValidateResponse.class)
+public interface ValidateResponse {
+  @JsonProperty("name")
+  String name();
 
-  public String name() {
-    return this.name;
-  }
+  @JsonProperty("error_count")
+  Integer errorCount();
 
-  public Integer errorCount() {
-    return this.errorCount;
-  }
+  @JsonProperty("groups")
+  List<String> groups();
 
-  public List<String> groups() {
-    return this.groups;
-  }
+  @JsonProperty("configs")
+  List<ConfigElement> configs();
 
-  public List<ConfigElement> configs() {
-    return this.configs;
-  }
+  interface ConfigElement {
+    @JsonProperty("definition")
+    ConfigDefinition definition();
 
-  public static class ConfigElement {
-    @Key("definition")
-    ConfigDefinition definition;
-    @Key("value")
-    ConfigValue value;
-
-    public ConfigDefinition definition() {
-      return this.definition;
-    }
-
-    public ConfigValue value() {
-      return this.value;
-    }
+    @JsonProperty("value")
+    ConfigValue value();
   }
 
 
-  public static class ConfigDefinition {
+  interface ConfigDefinition {
     public enum Type {
 
     }
@@ -74,99 +59,54 @@ public class ValidateResponse {
 
     }
 
-    @Key("name")
-    String name;
-    @Key("type")
-    String type;
-    @Key("required")
-    boolean required;
-    @Key("default_value")
-    String defaultValue;
-    @Key("importance")
-    String importance;
-    @Key("documentation")
-    String documentation;
-    @Key("group")
-    String group;
-    @Key("order_in_group")
-    int orderInGroup;
-    @Key("width")
-    String width;
-    @Key("display_name")
-    String displayName;
-    @Key("dependents")
-    List<String> dependents;
+    @JsonProperty("name")
+    String name();
 
-    public String name() {
-      return this.name;
-    }
+    @JsonProperty("type")
+    String type();
 
-    public String type() {
-      return this.type;
-    }
+    @JsonProperty("required")
+    boolean required();
 
-    public boolean required() {
-      return this.required;
-    }
+    @JsonProperty("default_value")
+    String defaultValue();
 
-    public String defaultValue() {
-      return this.defaultValue;
-    }
+    @JsonProperty("importance")
+    String importance();
 
-    public String importance() {
-      return this.importance;
-    }
+    @JsonProperty("documentation")
+    String documentation();
 
-    public String documentation() {
-      return this.documentation;
-    }
+    @JsonProperty("group")
+    String group();
 
-    public String group() {
-      return this.group;
-    }
+    @JsonProperty("order_in_group")
+    int orderInGroup();
 
-    public int orderInGroup() {
-      return this.orderInGroup;
-    }
+    @JsonProperty("width")
+    String width();
 
-    public String width() {
-      return this.width;
-    }
+    @JsonProperty("display_name")
+    String displayName();
 
-    public String displayName() {
-      return this.displayName;
-    }
-
-    public List<String> dependents() {
-      return this.dependents;
-    }
+    @JsonProperty("dependents")
+    List<String> dependents();
   }
 
-  public static class ConfigValue {
-    @Key("name") String name;
-    @Key("value") String value;
-    @Key("recommended_values") List<String> recommendedValues;
-    @Key("errors") List<String> errors;
-    @Key("visible") boolean visible;
+  interface ConfigValue {
+    @JsonProperty("name")
+    String name();
 
-    public String name() {
-      return this.name;
-    }
+    @JsonProperty("value")
+    String value();
 
-    public String value() {
-      return this.value;
-    }
+    @JsonProperty("recommended_values")
+    List<String> recommendedValues();
 
-    public List<String> recommendedValues() {
-      return this.recommendedValues;
-    }
+    @JsonProperty("errors")
+    List<String> errors();
 
-    public List<String> errors() {
-      return this.errors;
-    }
-
-    public boolean visible() {
-      return this.visible;
-    }
+    @JsonProperty("visible")
+    boolean visible();
   }
 }
