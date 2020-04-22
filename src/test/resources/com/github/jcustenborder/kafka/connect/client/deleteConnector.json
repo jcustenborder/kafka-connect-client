@@ -27,7 +27,7 @@
   "responses" : [ {
     "metadata" : {
       "headers" : {
-        "Accept" : "application/json"
+        "Content-Type" : "application/json"
       },
       "statusCode" : 409
     },
@@ -38,7 +38,7 @@
   }, {
     "metadata" : {
       "headers" : {
-        "Accept" : "application/json"
+        "Content-Type" : "application/json"
       },
       "statusCode" : 409
     },
@@ -49,7 +49,7 @@
   }, {
     "metadata" : {
       "headers" : {
-        "Accept" : "application/json"
+        "Content-Type" : "application/json"
       },
       "statusCode" : 204
     }
