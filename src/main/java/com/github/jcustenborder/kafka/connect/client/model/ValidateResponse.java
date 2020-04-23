@@ -54,23 +54,36 @@ public interface ValidateResponse {
   @Value.Style(jdkOnly = true)
   @JsonDeserialize(as = ImmutableConfigDefinition.class)
   interface ConfigDefinition {
-    public enum Type {
-
+    enum Type {
+      BOOLEAN,
+      CLASS,
+      DOUBLE,
+      INT,
+      LIST,
+      LONG,
+      PASSWORD,
+      SHORT,
+      STRING
     }
 
-    public enum Importance {
-
+    enum Importance {
+      HIGH,
+      LOW,
+      MEDIUM
     }
 
-    public enum Width {
-
+    enum Width {
+      LONG,
+      MEDIUM,
+      NONE,
+      SHORT,
     }
 
     @JsonProperty("name")
     String name();
 
     @JsonProperty("type")
-    String type();
+    Type type();
 
     @JsonProperty("required")
     boolean required();
@@ -80,7 +93,7 @@ public interface ValidateResponse {
     String defaultValue();
 
     @JsonProperty("importance")
-    String importance();
+    Importance importance();
 
     @JsonProperty("documentation")
     String documentation();
@@ -96,7 +109,7 @@ public interface ValidateResponse {
     int order();
 
     @JsonProperty("width")
-    String width();
+    Width width();
 
     @JsonProperty("display_name")
     String displayName();
