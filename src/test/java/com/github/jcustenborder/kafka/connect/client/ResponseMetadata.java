@@ -13,36 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.jcustenborder.kafka.connect.client.model;
+package com.github.jcustenborder.kafka.connect.client;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.immutables.value.Value;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+
 @Value.Immutable
-@JsonDeserialize(as = ImmutableServerInfo.class)
-@Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
-public abstract class ServerInfo {
-  @JsonProperty("version")
-  @Value.Parameter
-  public abstract String version();
-
-  @JsonProperty("commit")
-  @Value.Parameter
-  public abstract String commit();
-
-  @JsonProperty("kafka_cluster_id")
-  @Value.Parameter
-  public abstract String kafkaClusterId();
-
-  public interface Builder {
-    Builder version(String version);
-    Builder commit(String commit);
-    Builder kafkaClusterId(String kafkaClusterId);
-    ServerInfo build();
+@Value.Style(jdkOnly = true)
+@JsonDeserialize(as = ImmutableResponseMetadata.class)
+public interface ResponseMetadata {
+  @JsonProperty(value = "headers", index = 0)
+  default Map<String, String> headers() {
+    Map<String, String> headers = new LinkedHashMap<>();
+    headers.put("Content-Type", "application/json");
+    return headers;
   }
 
-  public static Builder builder() {
-    return ImmutableServerInfo.builder();
+  @JsonProperty("statusCode")
+  int statusCode();
+
+  @JsonIgnore
+  default boolean isSuccessful() {
+    return statusCode() >= 200 && statusCode() <= 400;
   }
 }

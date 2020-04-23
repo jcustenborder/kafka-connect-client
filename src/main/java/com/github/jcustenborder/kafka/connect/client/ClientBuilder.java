@@ -15,15 +15,37 @@
  */
 package com.github.jcustenborder.kafka.connect.client;
 
-import com.palantir.docker.compose.connection.Cluster;
-import com.palantir.docker.compose.connection.Container;
-import com.palantir.docker.compose.connection.waiting.ClusterHealthCheck;
-import com.palantir.docker.compose.connection.waiting.SuccessOrFailure;
+import okhttp3.OkHttpClient;
 
-public class KafkaConnectHealthCheck implements ClusterHealthCheck {
-  @Override
-  public SuccessOrFailure isClusterHealthy(Cluster cluster) throws InterruptedException {
-    Container container = cluster.container("connect");
-    return container.portIsListeningOnHttpAndCheckStatus2xx(8083, dockerPort -> dockerPort.inFormat("http://$HOST:$EXTERNAL_PORT/connectors"));
-  }
+import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
+
+public interface ClientBuilder<T> {
+  T host(String host);
+
+  T port(int port);
+
+  T scheme(String scheme);
+
+  T username(String username);
+
+  T password(String password);
+
+  T callTimeout(Duration callTimeout);
+
+  T connectTimeout(Duration connectTimeout);
+
+  T writeTimeout(Duration writeTimeout);
+
+  T readTimeout(Duration readTimeout);
+
+  T retries(int retries);
+
+  T delayBetweenAttempts(Duration delayBetweenAttempts);
+
+  T client(OkHttpClient client);
+
+  T scheduler(ScheduledExecutorService scheduler);
+
+  T shutdownSchedulerOnClose(boolean shutdownSchedulerOnClose);
 }

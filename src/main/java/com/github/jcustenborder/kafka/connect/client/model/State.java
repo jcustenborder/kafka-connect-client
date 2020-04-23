@@ -15,15 +15,15 @@
  */
 package com.github.jcustenborder.kafka.connect.client.model;
 
-import com.google.api.client.util.Value;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public enum State {
-  @Value("RUNNING")
+  @JsonProperty("RUNNING")
   Running,
-  @Value("FAILED")
+  @JsonProperty("FAILED")
   Failed,
-  @Value("UNASSIGNED")
+  @JsonProperty("UNASSIGNED")
   Unassigned,
-  @Value("PAUSED")
+  @JsonProperty("PAUSED")
   Paused
 }

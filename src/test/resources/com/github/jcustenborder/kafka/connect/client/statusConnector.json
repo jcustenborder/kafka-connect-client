@@ -1,0 +1,36 @@
+{
+  "requests" : [ {
+    "metadata" : {
+      "headers" : {
+        "Accept" : "application/json"
+      },
+      "method" : "GET",
+      "path" : "/connectors/hdfs-sink-connector/status"
+    }
+  } ],
+  "responses" : [ {
+    "metadata" : {
+      "headers" : {
+        "Content-Type" : "application/json"
+      },
+      "statusCode" : 200
+    },
+    "body" : {
+      "name" : "hdfs-sink-connector",
+      "connector" : {
+        "state" : "RUNNING",
+        "worker_id" : "fakehost:8083"
+      },
+      "tasks" : [ {
+        "state" : "RUNNING",
+        "worker_id" : "fakehost:8083",
+        "id" : 0
+      }, {
+        "state" : "FAILED",
+        "worker_id" : "fakehost:8083",
+        "trace" : "org.apache.kafka.common.errors.RecordTooLargeException\n",
+        "id" : 1
+      } ]
+    }
+  } ]
+}

@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.jcustenborder.kafka.connect.client.model;
+package com.github.jcustenborder.kafka.connect.client;
 
-import com.google.api.client.util.Key;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public class TaskStatusResponse extends ConnectorState {
-  @Key("id")
-  Integer id;
-
-  public Integer id() {
-    return this.id;
-  }
+@Target({ElementType.PARAMETER})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface LoadMockResponse {
+  String path();
 }

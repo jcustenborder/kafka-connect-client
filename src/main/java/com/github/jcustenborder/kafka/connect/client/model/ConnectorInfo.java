@@ -19,36 +19,41 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.immutables.value.Value;
 
-/**
- * Representation of a connector plugin.
- */
+import javax.annotation.Nullable;
+import java.util.List;
+import java.util.Map;
+
 @Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
 @Value.Immutable
-@JsonDeserialize(as = ImmutableConnectorPlugin.class)
-public abstract class ConnectorPlugin {
-  @JsonProperty("class")
-  @Value.Parameter
-  public abstract String className();
+@JsonDeserialize(as = ImmutableConnectorInfo.class)
+public abstract class ConnectorInfo {
+  @JsonProperty("name")
+  public abstract String name();
 
-  @JsonProperty("type")
-  @Value.Parameter
-  public abstract String type();
+  @JsonProperty("config")
+  public abstract Map<String, String> config();
 
-  @JsonProperty("version")
-  @Value.Parameter
-  public abstract String version();
+  @JsonProperty("tasks")
+  public abstract List<TaskInfo> tasks();
+
+  @JsonProperty(value = "type", required = false)
+  @Nullable
+  public abstract ConnectorType type();
 
   public interface Builder {
-    Builder className(String className);
+    Builder name(String name);
+    Builder putConfig(String key, String value);
+    Builder config(Map<String, ? extends String> entries);
+    Builder putConfig(Map.Entry<String, ? extends String> entry);
+    Builder addTasks(TaskInfo element);
+    Builder addTasks(TaskInfo... elements);
 
-    Builder type(String type);
-
-    Builder version(String version);
-
-    ConnectorPlugin build();
+    Builder type(ConnectorType type);
+    ConnectorInfo build();
   }
 
   public static Builder builder() {
-    return ImmutableConnectorPlugin.builder();
+    return ImmutableConnectorInfo.builder();
   }
+
 }

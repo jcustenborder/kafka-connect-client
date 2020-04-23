@@ -1,0 +1,57 @@
+{
+  "requests" : [ {
+    "metadata" : {
+      "headers" : {
+        "Accept" : "application/json"
+      },
+      "method" : "POST",
+      "path" : "/connectors/hdfs-sink-connector/restart"
+    }
+  }, {
+    "metadata" : {
+      "headers" : {
+        "Accept" : "application/json"
+      },
+      "method" : "POST",
+      "path" : "/connectors/hdfs-sink-connector/restart"
+    }
+  }, {
+    "metadata" : {
+      "headers" : {
+        "Accept" : "application/json"
+      },
+      "method" : "POST",
+      "path" : "/connectors/hdfs-sink-connector/restart"
+    }
+  } ],
+  "responses" : [ {
+    "metadata" : {
+      "headers" : {
+        "Content-Type" : "application/json"
+      },
+      "statusCode" : 409
+    },
+    "error" : {
+      "error_code" : 409,
+      "message" : "rebalancing"
+    }
+  }, {
+    "metadata" : {
+      "headers" : {
+        "Content-Type" : "application/json"
+      },
+      "statusCode" : 409
+    },
+    "error" : {
+      "error_code" : 409,
+      "message" : "rebalancing"
+    }
+  }, {
+    "metadata" : {
+      "headers" : {
+        "Content-Type" : "application/json"
+      },
+      "statusCode" : 200
+    }
+  } ]
+}

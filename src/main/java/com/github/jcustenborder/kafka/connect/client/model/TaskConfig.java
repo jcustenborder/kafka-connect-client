@@ -19,36 +19,35 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.immutables.value.Value;
 
-/**
- * Representation of a connector plugin.
- */
+import java.util.Map;
+
 @Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
 @Value.Immutable
-@JsonDeserialize(as = ImmutableConnectorPlugin.class)
-public abstract class ConnectorPlugin {
-  @JsonProperty("class")
-  @Value.Parameter
-  public abstract String className();
-
-  @JsonProperty("type")
-  @Value.Parameter
-  public abstract String type();
-
-  @JsonProperty("version")
-  @Value.Parameter
-  public abstract String version();
-
-  public interface Builder {
-    Builder className(String className);
-
-    Builder type(String type);
-
-    Builder version(String version);
-
-    ConnectorPlugin build();
+@JsonDeserialize(as = ImmutableTaskConfig.class)
+public abstract class TaskConfig {
+  public static Builder builder() {
+    return ImmutableTaskConfig.builder();
   }
 
-  public static Builder builder() {
-    return ImmutableConnectorPlugin.builder();
+  @JsonProperty("id")
+  @Value.Parameter
+  public abstract TaskInfo id();
+
+  @JsonProperty("config")
+  @Value.Parameter
+  public abstract Map<String, String> config();
+
+  public interface Builder {
+    Builder id(TaskInfo id);
+
+    Builder putConfig(String key, String value);
+
+    Builder putConfig(Map.Entry<String, ? extends String> entry);
+
+    Builder config(Map<String, ? extends String> entries);
+
+    Builder putAllConfig(Map<String, ? extends String> entries);
+
+    TaskConfig build();
   }
 }

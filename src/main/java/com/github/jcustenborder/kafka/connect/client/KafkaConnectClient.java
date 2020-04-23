@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,13 +15,16 @@
  */
 package com.github.jcustenborder.kafka.connect.client;
 
+import com.github.jcustenborder.kafka.connect.client.model.ConnectorInfo;
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorPlugin;
-import com.github.jcustenborder.kafka.connect.client.model.ConnectorStatusResponse;
-import com.github.jcustenborder.kafka.connect.client.model.CreateOrUpdateConnectorResponse;
-import com.github.jcustenborder.kafka.connect.client.model.GetConnectorResponse;
+import com.github.jcustenborder.kafka.connect.client.model.ConnectorStatus;
+import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorRequest;
+import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorResponse;
 import com.github.jcustenborder.kafka.connect.client.model.ServerInfo;
-import com.github.jcustenborder.kafka.connect.client.model.TaskStatusResponse;
+import com.github.jcustenborder.kafka.connect.client.model.TaskConfig;
+import com.github.jcustenborder.kafka.connect.client.model.TaskStatus;
 import com.github.jcustenborder.kafka.connect.client.model.ValidateResponse;
+import org.immutables.value.Value;
 
 import java.io.IOException;
 import java.util.List;
@@ -39,6 +42,17 @@ public interface KafkaConnectClient extends AutoCloseable {
    */
   List<String> connectors() throws IOException;
 
+  default CreateConnectorResponse createConnector(String name, Map<String, String> config) throws IOException {
+    return createConnector(
+        CreateConnectorRequest.builder()
+            .name(name)
+            .putAllConfig(config)
+            .build()
+    );
+  }
+
+  CreateConnectorResponse createConnector(CreateConnectorRequest request) throws IOException;
+
   /**
    * Method is used to create a connector.
    *
@@ -48,7 +62,7 @@ public interface KafkaConnectClient extends AutoCloseable {
    * @throws IllegalArgumentException exception is thrown in 'connector.class' or 'tasks.max' is not set.
    * @throws IOException              exception is thrown by the api.
    */
-  CreateOrUpdateConnectorResponse createOrUpdate(String name, Map<String, String> config) throws IOException;
+  ConnectorInfo createOrUpdate(String name, Map<String, String> config) throws IOException;
 
   /**
    * Method is used to return information about the connector.
@@ -57,7 +71,7 @@ public interface KafkaConnectClient extends AutoCloseable {
    * @return Information about the requested connector.
    * @throws IOException exception is thrown by the api.
    */
-  GetConnectorResponse get(String name) throws IOException;
+  ConnectorInfo info(String name) throws IOException;
 
   /**
    * Method is used to retrieve the configuration for a connector.
@@ -108,7 +122,7 @@ public interface KafkaConnectClient extends AutoCloseable {
    * @return status of the requested connector
    * @throws IOException exception is thrown by the api.
    */
-  ConnectorStatusResponse status(String name) throws IOException;
+  ConnectorStatus status(String name) throws IOException;
 
   /**
    * Method is  used to return state of a task.
@@ -118,7 +132,7 @@ public interface KafkaConnectClient extends AutoCloseable {
    * @return status of the requested task
    * @throws IOException exception is thrown by the api.
    */
-  TaskStatusResponse status(String name, int taskId) throws IOException;
+  TaskStatus status(String name, int taskId) throws IOException;
 
   /**
    * Method is used to restart a single task.
@@ -154,4 +168,27 @@ public interface KafkaConnectClient extends AutoCloseable {
    * @throws IOException exception is thrown by the api.
    */
   ServerInfo serverInfo() throws IOException;
+
+
+  /**
+   * @param name name of the connector
+   * @return
+   */
+  List<TaskConfig> taskConfigs(String name) throws IOException;
+
+  @Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
+  @Value.Immutable
+  class Settings extends AbstractSettings {
+    interface Builder extends ClientBuilder<Builder> {
+      Settings build();
+      default KafkaConnectClient createClient() {
+        Settings settings = this.build();
+        return new KafkaConnectClientImpl(settings);
+      }
+    }
+  }
+
+  static Settings.Builder builder() {
+    return ImmutableSettings.builder();
+  }
 }

@@ -1,0 +1,34 @@
+{
+  "requests" : [ {
+    "metadata" : {
+      "headers" : {
+        "Accept" : "application/json"
+      },
+      "method" : "POST",
+      "path" : "/connectors/hdfs-sink-connector/tasks/1/restart"
+    }
+  }, {
+    "metadata" : {
+      "headers" : {
+        "Content-Type" : "application/json"
+      },
+      "method" : "POST",
+      "path" : "/connectors/hdfs-sink-connector/tasks/1/restart"
+    }
+  } ],
+  "responses" : [ {
+    "metadata" : {
+      "headers" : {
+        "Content-Type" : "application/json"
+      },
+      "statusCode" : 409
+    }
+  }, {
+    "metadata" : {
+      "headers" : {
+        "Content-Type" : "application/json"
+      },
+      "statusCode" : 200
+    }
+  } ]
+}

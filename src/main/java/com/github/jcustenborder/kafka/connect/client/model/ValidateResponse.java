@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,158 +15,267 @@
  */
 package com.github.jcustenborder.kafka.connect.client.model;
 
-import com.google.api.client.util.Key;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.immutables.value.Value;
 
+import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 
-public class ValidateResponse {
-  @Key("name")
-  String name;
-  @Key("error_count")
-  Integer errorCount;
-  @Key("groups")
-  List<String> groups;
-  @Key("configs")
-  List<ConfigElement> configs;
-
-  public String name() {
-    return this.name;
+@Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
+@Value.Immutable
+@JsonDeserialize(as = ImmutableValidateResponse.class)
+public abstract class ValidateResponse {
+  public enum Type {
+    BOOLEAN,
+    CLASS,
+    DOUBLE,
+    INT,
+    LIST,
+    LONG,
+    PASSWORD,
+    SHORT,
+    STRING
   }
 
-  public Integer errorCount() {
-    return this.errorCount;
+  public enum Importance {
+    HIGH,
+    LOW,
+    MEDIUM
   }
 
-  public List<String> groups() {
-    return this.groups;
+  public enum Width {
+    LONG,
+    MEDIUM,
+    NONE,
+    SHORT,
   }
 
-  public List<ConfigElement> configs() {
-    return this.configs;
+  @JsonProperty("name")
+  @Value.Parameter
+  public abstract String name();
+
+  @JsonProperty("error_count")
+  @Value.Parameter
+  public abstract Integer errorCount();
+
+  @JsonProperty("groups")
+  @Value.Parameter
+  public abstract List<String> groups();
+
+  @JsonProperty("configs")
+  @Value.Parameter
+  public abstract List<ConfigElement> configs();
+
+  public interface Builder {
+    Builder name(String name);
+
+    Builder errorCount(Integer errorCount);
+
+    Builder addGroups(String element);
+
+    Builder addGroups(String... elements);
+
+    Builder groups(Iterable<String> elements);
+
+    Builder addAllGroups(Iterable<String> elements);
+
+    Builder addConfigs(ValidateResponse.ConfigElement element);
+
+    Builder addConfigs(ValidateResponse.ConfigElement... elements);
+
+    Builder configs(Iterable<? extends ValidateResponse.ConfigElement> elements);
+
+    Builder addAllConfigs(Iterable<? extends ValidateResponse.ConfigElement> elements);
+
+    ValidateResponse build();
   }
 
-  public static class ConfigElement {
-    @Key("definition")
-    ConfigDefinition definition;
-    @Key("value")
-    ConfigValue value;
+  public static Builder builder() {
+    return ImmutableValidateResponse.builder();
+  }
 
-    public ConfigDefinition definition() {
-      return this.definition;
+  @Value.Immutable
+  @Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
+  @JsonDeserialize(as = ImmutableConfigElement.class)
+  public static abstract class ConfigElement {
+    @JsonProperty("definition")
+    @Value.Parameter
+    public abstract ConfigDefinition definition();
+
+    @JsonProperty("value")
+    @Value.Parameter
+    public abstract ConfigValue value();
+
+    public interface Builder {
+      Builder definition(ConfigDefinition definition);
+
+      Builder value(ConfigValue value);
+
+      ConfigElement build();
     }
 
-    public ConfigValue value() {
-      return this.value;
+    public static Builder builder() {
+      return ImmutableConfigElement.builder();
     }
   }
 
+  @Value.Immutable
+  @Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
+  @JsonDeserialize(as = ImmutableConfigDefinition.class)
+  public static abstract class ConfigDefinition {
 
-  public static class ConfigDefinition {
-    public enum Type {
+    @JsonProperty("name")
+    @Value.Parameter
+    public abstract String name();
 
-    }
+    @JsonProperty("type")
+    @Value.Parameter
+    public abstract Type type();
 
-    public enum Importance {
+    @JsonProperty("required")
+    @Value.Parameter
+    public abstract boolean required();
 
-    }
+    @Nullable
+    @JsonProperty("default_value")
+    @Value.Parameter
+    public abstract String defaultValue();
 
-    public enum Width {
+    @JsonProperty("importance")
+    @Value.Parameter
+    public abstract Importance importance();
 
-    }
+    @JsonProperty("documentation")
+    @Value.Parameter
+    public abstract String documentation();
 
-    @Key("name")
-    String name;
-    @Key("type")
-    String type;
-    @Key("required")
-    boolean required;
-    @Key("default_value")
-    String defaultValue;
-    @Key("importance")
-    String importance;
-    @Key("documentation")
-    String documentation;
-    @Key("group")
-    String group;
-    @Key("order_in_group")
-    int orderInGroup;
-    @Key("width")
-    String width;
-    @Key("display_name")
-    String displayName;
-    @Key("dependents")
-    List<String> dependents;
+    @JsonProperty("group")
+    @Value.Parameter
+    @Nullable
+    public abstract String group();
 
-    public String name() {
-      return this.name;
-    }
+    @Nullable
+    @JsonProperty("order_in_group")
+    @Value.Parameter
+    public abstract Integer orderInGroup();
 
-    public String type() {
-      return this.type;
-    }
+    @JsonProperty("order")
+    @Value.Parameter
+    public abstract int order();
 
-    public boolean required() {
-      return this.required;
-    }
+    @JsonProperty("width")
+    @Value.Parameter
+    public abstract Width width();
 
-    public String defaultValue() {
-      return this.defaultValue;
-    }
+    @JsonProperty("display_name")
+    @Value.Parameter
+    public abstract String displayName();
 
-    public String importance() {
-      return this.importance;
-    }
-
-    public String documentation() {
-      return this.documentation;
-    }
-
-    public String group() {
-      return this.group;
-    }
-
-    public int orderInGroup() {
-      return this.orderInGroup;
-    }
-
-    public String width() {
-      return this.width;
-    }
-
-    public String displayName() {
-      return this.displayName;
-    }
-
+    @JsonProperty("dependents")
+    @Value.Parameter
+    @Value.Default
     public List<String> dependents() {
-      return this.dependents;
+      return new ArrayList<>();
+    }
+
+    public interface Builder {
+      Builder name(String name);
+
+      Builder type(ValidateResponse.Type type);
+
+      Builder required(boolean required);
+
+      Builder defaultValue(@Nullable String defaultValue);
+
+      Builder importance(ValidateResponse.Importance importance);
+
+      Builder documentation(String documentation);
+
+      Builder group(String group);
+
+      Builder orderInGroup(@Nullable Integer orderInGroup);
+
+      Builder order(int order);
+
+      Builder width(ValidateResponse.Width width);
+
+      Builder displayName(String displayName);
+
+      Builder addDependents(String element);
+
+      Builder addDependents(String... elements);
+
+      Builder dependents(Iterable<String> elements);
+
+      Builder addAllDependents(Iterable<String> elements);
+
+      ConfigDefinition build();
+    }
+
+    public static Builder builder() {
+      return ImmutableConfigDefinition.builder();
     }
   }
 
-  public static class ConfigValue {
-    @Key("name") String name;
-    @Key("value") String value;
-    @Key("recommended_values") List<String> recommendedValues;
-    @Key("errors") List<String> errors;
-    @Key("visible") boolean visible;
+  @Value.Immutable
+  @Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
+  @JsonDeserialize(as = ImmutableConfigValue.class)
+  public static abstract class ConfigValue {
+    @JsonProperty("name")
+    @Value.Parameter
+    public abstract String name();
 
-    public String name() {
-      return this.name;
-    }
+    @Nullable
+    @JsonProperty("value")
+    @Value.Parameter
+    public abstract String value();
 
-    public String value() {
-      return this.value;
-    }
-
+    @JsonProperty("recommended_values")
+    @Value.Parameter
+    @Value.Default
     public List<String> recommendedValues() {
-      return this.recommendedValues;
+      return new ArrayList<>();
     }
 
+    @JsonProperty("errors")
+    @Value.Parameter
+    @Value.Default
     public List<String> errors() {
-      return this.errors;
+      return new ArrayList<>();
     }
 
-    public boolean visible() {
-      return this.visible;
+    @JsonProperty("visible")
+    @Value.Parameter
+    public abstract boolean visible();
+
+    public interface Builder {
+      Builder name(String name);
+
+      Builder value(String value);
+
+      Builder visible(boolean visible);
+
+      Builder addRecommendedValues(String element);
+
+      Builder addRecommendedValues(String... elements);
+
+      Builder recommendedValues(Iterable<String> elements);
+
+      Builder addAllRecommendedValues(Iterable<String> elements);
+
+      Builder addErrors(String element);
+
+      Builder addErrors(String... elements);
+
+      Builder errors(Iterable<String> elements);
+
+      Builder addAllErrors(Iterable<String> elements);
+    }
+
+    public static Builder builder() {
+      return ImmutableConfigValue.builder();
     }
   }
 }

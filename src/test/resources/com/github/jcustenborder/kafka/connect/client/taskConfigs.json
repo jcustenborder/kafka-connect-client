@@ -1,0 +1,31 @@
+{
+  "requests" : [ {
+    "metadata" : {
+      "headers" : {
+        "Accept" : "application/json"
+      },
+      "method" : "GET",
+      "path" : "/connectors/hdfs-sink-connector/tasks"
+    }
+  } ],
+  "responses" : [ {
+    "metadata" : {
+      "headers" : {
+        "Content-Type" : "application/json"
+      },
+      "statusCode" : 200
+    },
+    "body" : [ {
+      "id" : {
+        "connector" : "local-file-source",
+        "task" : 0
+      },
+      "config" : {
+        "file" : "/tmp/foo",
+        "task.class" : "org.apache.kafka.connect.file.FileStreamSourceTask",
+        "batch.size" : "2000",
+        "topic" : "foo"
+      }
+    } ]
+  } ]
+}

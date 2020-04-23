@@ -13,29 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.jcustenborder.kafka.connect.client.model;
+package com.github.jcustenborder.kafka.connect.client;
 
-import com.google.api.client.util.Key;
+import com.fasterxml.jackson.core.type.TypeReference;
+import okhttp3.Response;
 
-import java.util.List;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
-public class ConnectorStatusResponse {
-  @Key("name")
-  String name;
-  @Key("connector")
-  ConnectorState connector;
-  @Key("tasks")
-  List<TaskStatusResponse> tasks;
-
-  public String name() {
-    return this.name;
+class TypeReferenceCallback<T> extends JsonCallback<TypeReference<T>, T> {
+  TypeReferenceCallback(AbstractSettings settings, CompletableFuture<T> futureResult, TypeReference<T> type) {
+    super(settings, futureResult, type);
   }
 
-  public ConnectorState connector() {
-    return this.connector;
-  }
-
-  public List<TaskStatusResponse> tasks() {
-    return this.tasks;
+  @Override
+  protected T parse(Response response, TypeReference<T> type) throws IOException {
+    return parseTypeReference(response, type);
   }
 }

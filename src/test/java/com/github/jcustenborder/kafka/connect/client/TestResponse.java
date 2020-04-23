@@ -13,39 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.jcustenborder.kafka.connect.client.model;
+package com.github.jcustenborder.kafka.connect.client;
 
-import com.google.api.client.util.Key;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.jcustenborder.kafka.connect.client.model.ErrorResponse;
 
-import java.util.List;
-import java.util.Map;
+import javax.annotation.Nullable;
 
-public class GetConnectorResponse {
-  @Key("name")
-  String name;
+public interface TestResponse<T> {
+  @JsonProperty("metadata")
+  ResponseMetadata metadata();
 
-  @Key("config")
-  Map<String, String> config;
+  @Nullable
+  @JsonProperty("error")
+  ErrorResponse error();
 
-  @Key("tasks")
-  List<CreateOrUpdateConnectorResponse.Task> tasks;
-
-  @Key("type")
-  ConnectorType type;
-
-  public String name() {
-    return this.name;
-  }
-
-  public Map<String, String> config() {
-    return this.config;
-  }
-
-  public List<CreateOrUpdateConnectorResponse.Task> tasks() {
-    return this.tasks;
-  }
-
-  public ConnectorType type() {
-    return this.type;
-  }
+  @Nullable
+  @JsonProperty("body")
+  T body();
 }

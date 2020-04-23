@@ -15,283 +15,581 @@
  */
 package com.github.jcustenborder.kafka.connect.client;
 
-import com.github.jcustenborder.docker.junit5.Compose;
-import com.github.jcustenborder.docker.junit5.Port;
-import com.github.jcustenborder.kafka.connect.client.model.ConnectorPlugin;
-import com.github.jcustenborder.kafka.connect.client.model.ConnectorState;
-import com.github.jcustenborder.kafka.connect.client.model.ConnectorStatusResponse;
-import com.github.jcustenborder.kafka.connect.client.model.ConnectorType;
-import com.github.jcustenborder.kafka.connect.client.model.CreateOrUpdateConnectorResponse;
-import com.github.jcustenborder.kafka.connect.client.model.GetConnectorResponse;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.github.jcustenborder.kafka.connect.client.model.ConnectorInfo;
+import com.github.jcustenborder.kafka.connect.client.model.ConnectorStatus;
+import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorRequest;
+import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorResponse;
 import com.github.jcustenborder.kafka.connect.client.model.ServerInfo;
-import com.github.jcustenborder.kafka.connect.client.model.State;
-import com.github.jcustenborder.kafka.connect.client.model.TaskStatusResponse;
+import com.github.jcustenborder.kafka.connect.client.model.TaskConfig;
+import com.github.jcustenborder.kafka.connect.client.model.TaskStatus;
 import com.github.jcustenborder.kafka.connect.client.model.ValidateResponse;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
+import org.immutables.value.Value;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.time.Duration;
+import java.net.URISyntaxException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 
-@Compose(dockerComposePath = "src/test/resources/docker-compose.yml", clusterHealthCheck = KafkaConnectHealthCheck.class)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@ExtendWith({MockRequestExtension.class})
 public class KafkaConnectClientTest {
   private static final Logger log = LoggerFactory.getLogger(KafkaConnectClientTest.class);
 
-  KafkaConnectClient client;
-
+  protected MockWebServer mockWebServer;
+  protected KafkaConnectClient kafkaConnectClient;
+  protected ObjectMapper objectMapper;
 
   @BeforeEach
-  public void before(@Port(container = "kafka-connect", internalPort = 8083) InetSocketAddress address) {
-    log.info("before() - Configuring client factory to {}", address);
-    KafkaConnectClientFactory clientFactory;
-    clientFactory = new KafkaConnectClientFactory();
-    clientFactory.host(address.getHostString());
-    clientFactory.port(address.getPort());
-    this.client = clientFactory.createClient();
+  public void before() throws URISyntaxException, IOException {
+    this.mockWebServer = new MockWebServer();
+    this.mockWebServer.start();
+    this.objectMapper = new ObjectMapper();
+    this.objectMapper.configure(SerializationFeature.INDENT_OUTPUT, true);
+    this.objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    this.kafkaConnectClient = KafkaConnectClient.builder()
+        .host(this.mockWebServer.getHostName())
+        .port(this.mockWebServer.getPort())
+        .createClient();
   }
 
-  void ensureNoConnectors() throws IOException {
-    List<String> connectors = this.client.connectors();
-    assertNotNull(connectors);
-    assertTrue(connectors.isEmpty());
+  @AfterEach
+  public void after() throws Exception {
+    this.kafkaConnectClient.close();
   }
 
-  @Order(0)
+  private <A extends TestRequest, B extends TestResponse> void configure(TestCase<A, B> testCase) throws JsonProcessingException {
+    for (B response : testCase.responses()) {
+      MockResponse mockResponse = new MockResponse();
+      mockResponse.setResponseCode(response.metadata().statusCode());
+      if (null != response.metadata().headers() && !response.metadata().headers().isEmpty()) {
+        response.metadata().headers().forEach(mockResponse::setHeader);
+      }
+      if (response.metadata().isSuccessful()) {
+        if (null != response.body()) {
+          String body = this.objectMapper.writeValueAsString(response.body());
+          mockResponse.setBody(body);
+        }
+      } else {
+        if (null != response.error()) {
+          String body = this.objectMapper.writeValueAsString(response.error());
+          mockResponse.setBody(body);
+        }
+      }
+      this.mockWebServer.enqueue(mockResponse);
+    }
+  }
+
+  private <A extends TestRequest, B extends TestResponse> void assertRequests(TestCase<A, B> testCase) throws InterruptedException, JsonProcessingException {
+    for (A request : testCase.requests()) {
+      RecordedRequest recordedRequest = this.mockWebServer.takeRequest(5, TimeUnit.SECONDS);
+      log.info("assertRequests() - method='{}' url='{}'", recordedRequest.getMethod(), recordedRequest.getRequestUrl());
+      assertEquals(request.metadata().path(), recordedRequest.getPath());
+      assertEquals(request.metadata().method(), recordedRequest.getMethod());
+      if (null != request.body()) {
+        String body = recordedRequest.getBody().readUtf8();
+        log.info("assertRequests() - method='{}' url='{}'\n{}", recordedRequest.getMethod(), recordedRequest.getRequestUrl(), body);
+        Object value = objectMapper.readValue(body, request.body().getClass());
+        assertEquals(request.body(), value);
+      }
+    }
+  }
+
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableServerInfoTestCase.class)
+  public interface ServerInfoTestCase extends TestCase<ServerInfoTestCase.ServerInfoTestRequest, ServerInfoTestCase.ServerInfoTestResponse> {
+
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableServerInfoTestRequest.class)
+    interface ServerInfoTestRequest extends TestRequest<Object> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableServerInfoTestResponse.class)
+    interface ServerInfoTestResponse extends TestResponse<ServerInfo> {
+
+    }
+  }
+
   @Test
-  public void startShouldBeNoConnectors() throws IOException {
-    ensureNoConnectors();
-  }
+  public void serverInfo(@LoadMockResponse(path = "serverinfo.json") ServerInfoTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
 
-  @Order(1)
-  @Test
-  public void connectorPlugins() throws IOException {
-    List<ConnectorPlugin> connectorPlugins = client.connectorPlugins();
-    assertNotNull(connectorPlugins, "connectorPlugins should not be null.");
-    Optional<ConnectorPlugin> fileStreamSinkConnectorPlugin = connectorPlugins.stream()
-        .filter(connectorPlugin -> "org.apache.kafka.connect.file.FileStreamSinkConnector".equalsIgnoreCase(connectorPlugin.className()))
-        .findAny();
-    assertTrue(fileStreamSinkConnectorPlugin.isPresent(), "FileStreamSinkConnector should be present.");
-  }
-
-  @Order(2)
-  @Test
-  public void validate() throws IOException {
-    ValidateResponse validateResponse = client.validate(
-        "FileStreamSinkConnector",
-        ImmutableMap.of(
-            "connector.class", "org.apache.kafka.connect.file.FileStreamSinkConnector",
-            "tasks.max", "1",
-            "topics", "test-topic",
-            "name", "foo"
-        )
+    ServerInfo serverInfo = this.kafkaConnectClient.serverInfo();
+    assertEquals(
+        ServerInfo.builder()
+            .commit("e5741b90cde98052")
+            .kafkaClusterId("I4ZmrWqfT2e-upky_4fdPA")
+            .version("5.5.0")
+            .build(),
+        serverInfo
     );
-    assertNotNull(validateResponse);
-    assertEquals("org.apache.kafka.connect.file.FileStreamSinkConnector", validateResponse.name(), "connector name does not match.");
+    assertRequests(testCase);
+  }
+
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableConnectorsTestCase.class)
+  public interface ConnectorsTestCase extends TestCase<ConnectorsTestCase.ConnectorsTestRequest, ConnectorsTestCase.ConnectorsTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableConnectorsTestRequest.class)
+    interface ConnectorsTestRequest extends TestRequest<Object> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableConnectorsTestResponse.class)
+    interface ConnectorsTestResponse extends TestResponse<List<String>> {
+
+    }
 
   }
 
-  static final String CONNECTOR_NAME = "test-connector";
-  static final int MAX_TASKS = 3;
-  static final Map<String, String> CONNECTOR_CONFIG = ImmutableMap.of(
-      "connector.class", "org.apache.kafka.connect.file.FileStreamSinkConnector",
-      "tasks.max", Integer.toString(MAX_TASKS),
-      "topics", "test-topic",
-      "name", CONNECTOR_NAME
-  );
-
-  @Order(3)
   @Test
-  public void create() throws IOException {
-    CreateOrUpdateConnectorResponse response = client.createOrUpdate("test-connector", CONNECTOR_CONFIG);
-    assertNotNull(response, "response should not be null.");
-    assertEquals(CONNECTOR_NAME, response.name(), "name does not match.");
-    assertEquals(CONNECTOR_CONFIG, response.config(), "config does not match.");
-    assertNotNull(response.tasks(), "tasks should not be null");
+  public void connectors(@LoadMockResponse(path = "connectors.json") ConnectorsTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    List<String> connectors = this.kafkaConnectClient.connectors();
+    assertEquals(ImmutableList.of("my-jdbc-source", "my-hdfs-sink"), connectors);
+    assertRequests(testCase);
   }
 
-  @Order(4)
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableCreateConnectorTestCase.class)
+  public interface CreateConnectorTestCase extends TestCase<CreateConnectorTestCase.CreateConnectorTestRequest, CreateConnectorTestCase.CreateConnectorTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableCreateConnectorTestRequest.class)
+    interface CreateConnectorTestRequest extends TestRequest<CreateConnectorRequest> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableCreateConnectorTestResponse.class)
+    interface CreateConnectorTestResponse extends TestResponse<CreateConnectorResponse> {
+
+    }
+  }
+
+
   @Test
-  public void connectorStatus() throws IOException, InterruptedException {
-    ConnectorStatusResponse statusResponse = status();
-    for (int i = 0; i < MAX_TASKS; i++) {
-      TaskStatusResponse task = statusResponse.tasks().get(i);
-      assertEquals(i, task.id());
-      assertEquals("kafka-connect:8083", task.workerID());
+  public void createConnector(@LoadMockResponse(path = "createConnector.json") CreateConnectorTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    CreateConnectorRequest request = CreateConnectorRequest.builder()
+        .name("hdfs-sink-connector")
+        .putConfig("connector.class", "io.confluent.connect.hdfs.HdfsSinkConnector")
+        .putConfig("tasks.max", "10")
+        .putConfig("topics", "test-topic")
+        .putConfig("hdfs.url", "hdfs://fakehost:9000")
+        .putConfig("hadoop.conf.dir", "/opt/hadoop/conf")
+        .putConfig("hadoop.home", "/opt/hadoop")
+        .putConfig("flush.size", "100")
+        .putConfig("rotate.interval.ms", "1000")
+        .build();
+    CreateConnectorResponse actual = this.kafkaConnectClient.createConnector(request);
+    CreateConnectorResponse expected = testCase.responses().get(1).body();
+    assertEquals(expected, actual);
+    assertRequests(testCase);
+  }
+
+
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableGetConnectorTestCase.class)
+  public interface GetConnectorTestCase extends TestCase<GetConnectorTestCase.GetConnectorTestRequest, GetConnectorTestCase.GetConnectorTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableGetConnectorTestRequest.class)
+    interface GetConnectorTestRequest extends TestRequest<Object> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableGetConnectorTestResponse.class)
+    interface GetConnectorTestResponse extends TestResponse<ConnectorInfo> {
+
     }
   }
 
   @Test
-  @Order(5)
-  public void taskStatus() throws IOException {
-    TaskStatusResponse taskStatusResponse = this.client.status(CONNECTOR_NAME, 0);
-    assertNotNull(taskStatusResponse);
-    assertEquals(0, taskStatusResponse.id(), "task id does not match.");
+  public void info(@LoadMockResponse(path = "connector-info.json") GetConnectorTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    ConnectorInfo actual = this.kafkaConnectClient.info("hdfs-sink-connector");
+    ConnectorInfo expected = testCase.responses().get(0).body();
+    assertEquals(expected, actual);
+    assertRequests(testCase);
   }
 
-  @Test
-  @Order(6)
-  public void config() throws IOException {
-    Map<String, String> actual = this.client.config(CONNECTOR_NAME);
-    assertNotNull(actual, "actual should not be null.");
-    assertEquals(CONNECTOR_CONFIG, actual, "config should match.");
-  }
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableConfigTestCase.class)
+  public interface ConfigTestCase extends TestCase<ConfigTestCase.ConfigTestRequest, ConfigTestCase.ConfigTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableConfigTestRequest.class)
+    interface ConfigTestRequest extends TestRequest<Object> {
 
-  @Test
-  @Order(7)
-  public void get() throws IOException {
-    GetConnectorResponse actual = this.client.get(CONNECTOR_NAME);
-    assertNotNull(actual, "actual should not be null.");
-    assertEquals(CONNECTOR_CONFIG, actual.config(), "config should match.");
-    assertEquals(CONNECTOR_NAME, actual.name());
-    assertEquals(MAX_TASKS, actual.tasks().size(), "tasks.size() does not match.");
-    assertEquals(ConnectorType.Sink, actual.type(), "type does not match.");
-  }
-
-  ConnectorStatusResponse waitForState(State state) {
-    final AtomicReference<ConnectorStatusResponse> result = new AtomicReference<>(null);
-    assertTimeoutPreemptively(Duration.ofSeconds(60), () -> {
-      while (true) {
-        ConnectorStatusResponse status = status();
-        result.set(status);
-        long count = status.tasks().stream()
-            .map(ConnectorState::state)
-            .filter(s -> s == state)
-            .count();
-        if (count == status.tasks().size()) {
-          break;
-        }
-      }
-    });
-    return result.get();
-  }
-
-  ConnectorStatusResponse status() {
-    final AtomicReference<ConnectorStatusResponse> result = new AtomicReference<>(null);
-    assertTimeoutPreemptively(Duration.ofSeconds(30), () -> {
-      int attempts = 0;
-      while (true) {
-        try {
-          log.info("status() - Retrieving status for {}. Attempt {}", CONNECTOR_NAME, attempts);
-          ConnectorStatusResponse statusResponse = client.status(CONNECTOR_NAME);
-          assertNotNull(statusResponse, "statusResponse should not be null.");
-          assertEquals(CONNECTOR_NAME, statusResponse.name(), "Connector name does not match.");
-
-          if (statusResponse.tasks().isEmpty()) {
-            throw new KafkaConnectException(9999, "Tasks should not be empty.");
-          }
-          assertEquals(MAX_TASKS, statusResponse.tasks().size(), "Task count does not match.");
-          result.set(statusResponse);
-          return;
-        } catch (KafkaConnectException ex) {
-          log.debug("Exception thrown", ex);
-          if (404 == ex.errorCode() && attempts > 10) {
-            throw ex;
-          } else {
-            log.info("status() - Sleeping");
-            Thread.sleep(1000);
-          }
-        } finally {
-          attempts++;
-        }
-      }
-
-    }, "Exception thrown waiting for state");
-    return result.get();
-  }
-
-  @Test
-  @Order(8)
-  public void pause() throws IOException {
-    // Make sure the connector is running
-    waitForState(State.Running);
-    this.client.pause(CONNECTOR_NAME);
-    waitForState(State.Paused);
-  }
-
-  @Test
-  @Order(9)
-  public void resume() throws IOException {
-    // Make sure the connector is running
-    waitForState(State.Paused);
-    this.client.resume(CONNECTOR_NAME);
-    waitForState(State.Running);
-  }
-
-  TaskStatusResponse waitForTaskState(int taskID, State state) {
-    log.info("waitForTaskState() - taskId = {} state = {}", taskID, state);
-    AtomicReference<TaskStatusResponse> result = new AtomicReference<>(null);
-
-    assertTimeoutPreemptively(Duration.ofSeconds(30), () -> {
-      while (true) {
-        TaskStatusResponse taskStatusResponse = this.client.status(CONNECTOR_NAME, taskID);
-        result.set(taskStatusResponse);
-        if (taskStatusResponse.state() == state) {
-          break;
-        }
-
-        Thread.sleep(1000);
-      }
-    });
-
-
-    return result.get();
-  }
-
-
-  @Test
-  @Order(10)
-  public void restartTasks() throws IOException {
-    ConnectorStatusResponse statusResponse = waitForState(State.Running);
-
-    for (TaskStatusResponse taskStatusResponse : statusResponse.tasks()) {
-      this.client.restart(CONNECTOR_NAME, taskStatusResponse.id());
-      waitForTaskState(taskStatusResponse.id(), State.Running);
     }
-    waitForState(State.Running);
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableConfigTestResponse.class)
+    interface ConfigTestResponse extends TestResponse<Map<String, String>> {
+
+    }
   }
 
   @Test
-  @Order(11)
-  public void restart() throws IOException {
-    this.client.restart(CONNECTOR_NAME);
-    waitForState(State.Running);
+  public void config(@LoadMockResponse(path = "config.json") ConfigTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    Map<String, String> actual = this.kafkaConnectClient.config("hdfs-sink-connector");
+    Map<String, String> expected = testCase.responses().get(0).body();
+    assertEquals(expected, actual);
+    assertRequests(testCase);
   }
 
   @Test
-  @Order(12)
-  public void delete() throws IOException {
-    this.client.delete(CONNECTOR_NAME);
+  public void configNotFound(@LoadMockResponse(path = "config-not-found.json") ConfigTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    KafkaConnectException exception = assertThrows(KafkaConnectException.class, () -> {
+      Map<String, String> actual = this.kafkaConnectClient.config("hdfs-sink-connector");
+    });
+    assertEquals(404, (int) exception.errorCode());
+    assertRequests(testCase);
   }
 
-  @Order(13)
-  @Test
-  public void finishShouldBeNoConnectors() throws IOException {
-    ensureNoConnectors();
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableCreateOrUpdateTestCase.class)
+  public interface CreateOrUpdateTestCase extends TestCase<CreateOrUpdateTestCase.CreateOrUpdateTestRequest, CreateOrUpdateTestCase.CreateOrUpdateTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableCreateOrUpdateTestRequest.class)
+    interface CreateOrUpdateTestRequest extends TestRequest<Map<String, String>> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableCreateOrUpdateTestResponse.class)
+    interface CreateOrUpdateTestResponse extends TestResponse<ConnectorInfo> {
+
+    }
   }
 
   @Test
-  public void serverInfo() throws IOException {
-    ServerInfo serverInfo = this.client.serverInfo();
-    assertNotNull(serverInfo.commit());
-    assertNotNull(serverInfo.kafkaClusterId());
-    assertNotNull(serverInfo.version());
+  public void createOrUpdate(@LoadMockResponse(path = "createOrUpdate.json") CreateOrUpdateTestCase testCase) throws IOException, InterruptedException {
+    Map<String, String> config = new LinkedHashMap<>();
+    config.put("connector.class", "io.confluent.connect.hdfs.HdfsSinkConnector");
+    config.put("tasks.max", "10");
+    config.put("topics", "test-topic");
+    config.put("hdfs.url", "hdfs://fakehost:9000");
+    config.put("hadoop.conf.dir", "/opt/hadoop/conf");
+    config.put("hadoop.home", "/opt/hadoop");
+    config.put("flush.size", "100");
+    config.put("rotate.interval.ms", "1000");
+
+    configure(testCase);
+    ConnectorInfo actual = this.kafkaConnectClient.createOrUpdate("hdfs-sink-connector", config);
+    ConnectorInfo expected = testCase.responses().get(0).body();
+    assertEquals(expected, actual);
+    assertRequests(testCase);
   }
+
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableConnectorStatusTestCase.class)
+  public interface ConnectorStatusTestCase extends TestCase<ConnectorStatusTestCase.ConnectorStatusTestRequest, ConnectorStatusTestCase.ConnectorStatusTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableConnectorStatusTestRequest.class)
+    interface ConnectorStatusTestRequest extends TestRequest<Object> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableConnectorStatusTestResponse.class)
+    interface ConnectorStatusTestResponse extends TestResponse<ConnectorStatus> {
+
+    }
+  }
+
+  @Test
+  public void statusConnector(@LoadMockResponse(path = "statusConnector.json") ConnectorStatusTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    ConnectorStatus actual = this.kafkaConnectClient.status("hdfs-sink-connector");
+    ConnectorStatus expected = testCase.responses().get(0).body();
+    assertEquals(expected, actual);
+    assertRequests(testCase);
+  }
+
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableRestartConnectorTestCase.class)
+  public interface RestartConnectorTestCase extends TestCase<RestartConnectorTestCase.RestartConnectorTestRequest, RestartConnectorTestCase.RestartConnectorTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableRestartConnectorTestRequest.class)
+    interface RestartConnectorTestRequest extends TestRequest<Object> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableRestartConnectorTestResponse.class)
+    interface RestartConnectorTestResponse extends TestResponse<Object> {
+
+    }
+  }
+
+  @Test
+  public void restartConnector(@LoadMockResponse(path = "restartConnector.json") RestartConnectorTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    this.kafkaConnectClient.restart("hdfs-sink-connector");
+    assertRequests(testCase);
+  }
+
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutablePauseConnectorTestCase.class)
+  public interface PauseConnectorTestCase extends TestCase<PauseConnectorTestCase.PauseConnectorTestRequest, PauseConnectorTestCase.PauseConnectorTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutablePauseConnectorTestRequest.class)
+    interface PauseConnectorTestRequest extends TestRequest<Object> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutablePauseConnectorTestResponse.class)
+    interface PauseConnectorTestResponse extends TestResponse<Object> {
+
+    }
+  }
+
+  @Test
+  public void pauseConnector(@LoadMockResponse(path = "pauseConnector.json") PauseConnectorTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    this.kafkaConnectClient.pause("hdfs-sink-connector");
+    assertRequests(testCase);
+  }
+
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableResumeConnectorTestCase.class)
+  public interface ResumeConnectorTestCase extends TestCase<ResumeConnectorTestCase.ResumeConnectorTestRequest, ResumeConnectorTestCase.ResumeConnectorTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableResumeConnectorTestRequest.class)
+    interface ResumeConnectorTestRequest extends TestRequest<Object> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableResumeConnectorTestResponse.class)
+    interface ResumeConnectorTestResponse extends TestResponse<Object> {
+
+    }
+  }
+
+  @Test
+  public void resumeConnector(@LoadMockResponse(path = "resumeConnector.json") ResumeConnectorTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    this.kafkaConnectClient.resume("hdfs-sink-connector");
+    assertRequests(testCase);
+  }
+
+
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableDeleteConnectorTestCase.class)
+  public interface DeleteConnectorTestCase extends TestCase<DeleteConnectorTestCase.DeleteConnectorTestRequest, DeleteConnectorTestCase.DeleteConnectorTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableDeleteConnectorTestRequest.class)
+    interface DeleteConnectorTestRequest extends TestRequest<Object> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableDeleteConnectorTestResponse.class)
+    interface DeleteConnectorTestResponse extends TestResponse<Object> {
+
+    }
+  }
+
+  @Test
+  public void deleteConnector(@LoadMockResponse(path = "deleteConnector.json") DeleteConnectorTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    this.kafkaConnectClient.delete("hdfs-sink-connector");
+    assertRequests(testCase);
+  }
+
+
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableTaskConfigsTestCase.class)
+  public interface TaskConfigsTestCase extends TestCase<TaskConfigsTestCase.TaskConfigsTestRequest, TaskConfigsTestCase.TaskConfigsTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableTaskConfigsTestRequest.class)
+    interface TaskConfigsTestRequest extends TestRequest<Object> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableTaskConfigsTestResponse.class)
+    interface TaskConfigsTestResponse extends TestResponse<List<TaskConfig>> {
+
+    }
+  }
+
+  @Test
+  public void taskConfigs(@LoadMockResponse(path = "taskConfigs.json") TaskConfigsTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    List<TaskConfig> actual = this.kafkaConnectClient.taskConfigs("hdfs-sink-connector");
+    List<TaskConfig> expected = testCase.responses().get(0).body();
+    assertEquals(expected, actual);
+    assertRequests(testCase);
+  }
+
+
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableTaskStatusTestCase.class)
+  public interface TaskStatusTestCase extends TestCase<TaskStatusTestCase.TaskStatusTestRequest, TaskStatusTestCase.TaskStatusTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableTaskStatusTestRequest.class)
+    interface TaskStatusTestRequest extends TestRequest<Object> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableTaskStatusTestResponse.class)
+    interface TaskStatusTestResponse extends TestResponse<TaskStatus> {
+
+    }
+  }
+
+  @Test
+  public void taskStatus(@LoadMockResponse(path = "taskStatus.json") TaskStatusTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    TaskStatus actual = this.kafkaConnectClient.status("hdfs-sink-connector", 1);
+    TaskStatus expected = testCase.responses().get(0).body();
+    assertEquals(expected, actual);
+    assertRequests(testCase);
+  }
+
+
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableTaskRestartTestCase.class)
+  public interface TaskRestartTestCase extends TestCase<TaskRestartTestCase.TaskRestartTestRequest, TaskRestartTestCase.TaskRestartTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableTaskRestartTestRequest.class)
+    interface TaskRestartTestRequest extends TestRequest<Object> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableTaskRestartTestResponse.class)
+    interface TaskRestartTestResponse extends TestResponse<Object> {
+
+    }
+  }
+
+  @Test
+  public void taskRestart(@LoadMockResponse(path = "taskRestart.json") TaskRestartTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    this.kafkaConnectClient.restart("hdfs-sink-connector", 1);
+    assertRequests(testCase);
+  }
+
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableValidateTestCase.class)
+  public interface ValidateTestCase extends TestCase<ValidateTestCase.ValidateTestRequest, ValidateTestCase.ValidateTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableValidateTestRequest.class)
+    interface ValidateTestRequest extends TestRequest<Map<String, String>> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableValidateTestResponse.class)
+    interface ValidateTestResponse extends TestResponse<ValidateResponse> {
+
+    }
+  }
+
+  @Test
+  public void validate(@LoadMockResponse(path = "validate.json") ValidateTestCase testCase) throws IOException, InterruptedException {
+    Map<String, String> config = ImmutableMap.of(
+        "connector.class", "io.confluent.connect.activemq.ActiveMQSourceConnector",
+        "tasks.max", "1"
+    );
+    configure(testCase);
+    ValidateResponse actual = this.kafkaConnectClient.validate("io.confluent.connect.activemq.ActiveMQSourceConnector", config);
+    ValidateResponse expected = testCase.responses().get(0).body();
+    assertEquals(expected, actual);
+    assertRequests(testCase);
+  }
+
+
+  public static File getOutputFile() {
+    String fileName = getMethodName(3) + ".json";
+    return new File("src/test/resources/com/github/jcustenborder/kafka/connect/client", fileName);
+  }
+
+  public static String getMethodName(final int depth) {
+    List<String> methodNames = Stream.of(Thread.currentThread().getStackTrace())
+        .map(StackTraceElement::getMethodName)
+        .collect(Collectors.toList());
+    return methodNames.get(depth);
+  }
+
+
 }

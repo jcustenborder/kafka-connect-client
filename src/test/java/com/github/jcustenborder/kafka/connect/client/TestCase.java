@@ -15,15 +15,14 @@
  */
 package com.github.jcustenborder.kafka.connect.client;
 
-import com.palantir.docker.compose.connection.Cluster;
-import com.palantir.docker.compose.connection.Container;
-import com.palantir.docker.compose.connection.waiting.ClusterHealthCheck;
-import com.palantir.docker.compose.connection.waiting.SuccessOrFailure;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class KafkaConnectHealthCheck implements ClusterHealthCheck {
-  @Override
-  public SuccessOrFailure isClusterHealthy(Cluster cluster) throws InterruptedException {
-    Container container = cluster.container("connect");
-    return container.portIsListeningOnHttpAndCheckStatus2xx(8083, dockerPort -> dockerPort.inFormat("http://$HOST:$EXTERNAL_PORT/connectors"));
-  }
+import java.util.List;
+
+public interface TestCase<A extends TestRequest, B extends TestResponse> {
+  @JsonProperty(index = 0)
+  List<A> requests();
+
+  @JsonProperty(index = 1)
+  List<B> responses();
 }

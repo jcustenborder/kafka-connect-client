@@ -15,15 +15,30 @@
  */
 package com.github.jcustenborder.kafka.connect.client;
 
-import com.palantir.docker.compose.connection.Cluster;
-import com.palantir.docker.compose.connection.Container;
-import com.palantir.docker.compose.connection.waiting.ClusterHealthCheck;
-import com.palantir.docker.compose.connection.waiting.SuccessOrFailure;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.immutables.value.Value;
 
-public class KafkaConnectHealthCheck implements ClusterHealthCheck {
-  @Override
-  public SuccessOrFailure isClusterHealthy(Cluster cluster) throws InterruptedException {
-    Container container = cluster.container("connect");
-    return container.portIsListeningOnHttpAndCheckStatus2xx(8083, dockerPort -> dockerPort.inFormat("http://$HOST:$EXTERNAL_PORT/connectors"));
-  }
+import javax.annotation.Nullable;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+
+@Value.Immutable
+@Value.Style(jdkOnly = true)
+@JsonDeserialize(as = ImmutableMetadata.class)
+public interface Metadata {
+
+
+  @Nullable
+  @JsonProperty(value = "method", index = 1)
+  String method();
+
+  @Nullable
+  @JsonProperty(value = "path", index = 2)
+  String path();
+
+  @Nullable
+  @JsonProperty("statusCode")
+  Integer statusCode();
 }

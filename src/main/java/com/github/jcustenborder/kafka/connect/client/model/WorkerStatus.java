@@ -16,12 +16,23 @@
 package com.github.jcustenborder.kafka.connect.client.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.immutables.value.Value;
 
-public enum ConnectorType {
-  @JsonProperty("sink")
-  Sink,
-  @JsonProperty("source")
-  Source,
-  @JsonProperty("UNKNOWN")
-  Unknown
+import javax.annotation.Nullable;
+
+
+public abstract class WorkerStatus {
+  @JsonProperty("state")
+  @Value.Parameter
+  public abstract State state();
+
+  @JsonProperty("worker_id")
+  @Value.Parameter
+  public abstract String workerID();
+
+  @Nullable
+  @JsonProperty("trace")
+  @Value.Parameter
+  public abstract String trace();
+
 }

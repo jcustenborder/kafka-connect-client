@@ -19,36 +19,27 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.immutables.value.Value;
 
-/**
- * Representation of a connector plugin.
- */
 @Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
 @Value.Immutable
-@JsonDeserialize(as = ImmutableConnectorPlugin.class)
-public abstract class ConnectorPlugin {
-  @JsonProperty("class")
-  @Value.Parameter
-  public abstract String className();
-
-  @JsonProperty("type")
-  @Value.Parameter
-  public abstract String type();
-
-  @JsonProperty("version")
-  @Value.Parameter
-  public abstract String version();
-
-  public interface Builder {
-    Builder className(String className);
-
-    Builder type(String type);
-
-    Builder version(String version);
-
-    ConnectorPlugin build();
+@JsonDeserialize(as = ImmutableTaskInfo.class)
+public abstract class TaskInfo {
+  public static Builder builder() {
+    return ImmutableTaskInfo.builder();
   }
 
-  public static Builder builder() {
-    return ImmutableConnectorPlugin.builder();
+  @JsonProperty("connector")
+  @Value.Parameter
+  public abstract String connector();
+
+  @JsonProperty("task")
+  @Value.Parameter
+  public abstract Integer task();
+
+  public interface Builder {
+    Builder connector(String connector);
+
+    Builder task(Integer task);
+
+    TaskInfo build();
   }
 }

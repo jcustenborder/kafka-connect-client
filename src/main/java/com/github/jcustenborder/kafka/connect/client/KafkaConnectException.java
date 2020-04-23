@@ -15,7 +15,8 @@
  */
 package com.github.jcustenborder.kafka.connect.client;
 
-import com.google.api.client.util.Key;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.jcustenborder.kafka.connect.client.model.ErrorResponse;
 
 import java.io.IOException;
 
@@ -24,19 +25,22 @@ import java.io.IOException;
  */
 public class KafkaConnectException extends IOException {
 
+  @JsonProperty("error_code")
+  private Integer errorCode;
+  @JsonProperty("message")
+  private String message;
+
   public KafkaConnectException() {
+  }
+
+  KafkaConnectException(ErrorResponse error) {
+    this(error.errorCode(), error.message());
   }
 
   KafkaConnectException(Integer errorCode, String message) {
     this.errorCode = errorCode;
     this.message = message;
   }
-
-  @Key("error_code")
-  private Integer errorCode;
-
-  @Key("message")
-  private String message;
 
   /**
    * Error code that was returned from the REST API.

@@ -15,46 +15,27 @@
  */
 package com.github.jcustenborder.kafka.connect.client.model;
 
-import com.google.api.client.util.Key;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.immutables.value.Value;
 
-import java.util.List;
-import java.util.Map;
+@Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
+@Value.Immutable
+@JsonDeserialize(as = ImmutableTaskStatus.class)
+public abstract class TaskStatus extends WorkerStatus {
+  @JsonProperty("id")
+  @Value.Parameter
+  public abstract Integer id();
 
-public class CreateOrUpdateConnectorResponse {
-  @Key("name")
-  String name;
-
-  @Key("config")
-  Map<String, String> config;
-
-  @Key("tasks")
-  List<Task> tasks;
-
-  public String name() {
-    return this.name;
+  public interface Builder {
+    Builder id(Integer id);
+    Builder state(State state);
+    Builder workerID(String workerID);
+    Builder trace(String trace);
+    TaskStatus build();
   }
 
-  public Map<String, String> config() {
-    return this.config;
-  }
-
-  public List<Task> tasks() {
-    return this.tasks;
-  }
-
-  public static class Task {
-    @Key("connector")
-    String connector;
-
-    @Key("task")
-    Integer task;
-
-    public String connector() {
-      return this.connector;
-    }
-
-    public Integer task() {
-      return this.task;
-    }
+  public static Builder builder() {
+    return ImmutableTaskStatus.builder();
   }
 }
