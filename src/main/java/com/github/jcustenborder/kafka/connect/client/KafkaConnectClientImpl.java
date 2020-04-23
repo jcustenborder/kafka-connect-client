@@ -47,14 +47,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 
 class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectClient {
-  private static final Logger log = LoggerFactory.getLogger(KafkaConnectClientImpl.class);
   static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
   static final RequestBody EMPTY = RequestBody.create(null, new byte[]{});
-  private final HttpUrl baseUrl;
-  private final OkHttpClient client;
-  private final ObjectMapper objectMapper;
-  private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-
   static final TypeReference<Map<String, String>> CONFIG_TYPE = new TypeReference<Map<String, String>>() {
   };
   static final TypeReference<List<String>> CONNECTORS_TYPE = new TypeReference<List<String>>() {
@@ -63,6 +57,11 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
   };
   static final TypeReference<List<ConnectorPlugin>> CONNECTOR_PLUGIN_TYPE = new TypeReference<List<ConnectorPlugin>>() {
   };
+  private static final Logger log = LoggerFactory.getLogger(KafkaConnectClientImpl.class);
+  private final HttpUrl baseUrl;
+  private final OkHttpClient client;
+  private final ObjectMapper objectMapper;
+  private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
 
   KafkaConnectClientImpl(
@@ -84,6 +83,20 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
     return builder.build();
   }
 
+  static <T> T get(Future<T> future) throws IOException {
+    try {
+      return future.get();
+    } catch (InterruptedException e) {
+      throw new IOException(e);
+    } catch (ExecutionException ex) {
+      if (ex.getCause() instanceof KafkaConnectException) {
+        throw (KafkaConnectException) ex.getCause();
+      } else {
+        throw new IOException(ex);
+      }
+    }
+  }
+
   HttpUrl baseUrl(String... parts) {
     return addPathSegments(this.baseUrl, Arrays.asList(parts));
   }
@@ -100,21 +113,6 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
     segments.add("connector-plugins");
     segments.addAll(Arrays.asList(parts));
     return addPathSegments(this.baseUrl, segments);
-  }
-
-
-  static <T> T get(Future<T> future) throws IOException {
-    try {
-      return future.get();
-    } catch (InterruptedException e) {
-      throw new IOException(e);
-    } catch (ExecutionException ex) {
-      if (ex.getCause() instanceof KafkaConnectException) {
-        throw (KafkaConnectException) ex.getCause();
-      } else {
-        throw new IOException(ex);
-      }
-    }
   }
 
   void checkConnectorConfig(Map<String, String> config) {

@@ -15,11 +15,11 @@
  */
 package com.github.jcustenborder.kafka.connect.client;
 
+import com.github.jcustenborder.kafka.connect.client.model.ConnectorInfo;
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorPlugin;
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorStatus;
 import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorRequest;
 import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorResponse;
-import com.github.jcustenborder.kafka.connect.client.model.ConnectorInfo;
 import com.github.jcustenborder.kafka.connect.client.model.ImmutableCreateConnectorRequest;
 import com.github.jcustenborder.kafka.connect.client.model.ServerInfo;
 import com.github.jcustenborder.kafka.connect.client.model.TaskConfig;

@@ -29,14 +29,14 @@ import java.io.IOException;
 import java.time.Duration;
 
 public class KafkaConnectClientFactory {
-  private HttpUrl.Builder baseUrlBuilder = new HttpUrl.Builder()
+  private final HttpUrl.Builder baseUrlBuilder = new HttpUrl.Builder()
       .host("localhost")
       .port(8083)
       .scheme("http");
 
   private String username;
   private String password;
-  private ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   private KafkaConnectClientImpl createClientImpl() {
     OkHttpClient client = new OkHttpClient.Builder()

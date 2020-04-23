@@ -25,6 +25,11 @@ import java.io.IOException;
  */
 public class KafkaConnectException extends IOException {
 
+  @JsonProperty("error_code")
+  private Integer errorCode;
+  @JsonProperty("message")
+  private String message;
+
   public KafkaConnectException() {
   }
 
@@ -36,12 +41,6 @@ public class KafkaConnectException extends IOException {
     this.errorCode = errorCode;
     this.message = message;
   }
-
-  @JsonProperty("error_code")
-  private Integer errorCode;
-
-  @JsonProperty("message")
-  private String message;
 
   /**
    * Error code that was returned from the REST API.
