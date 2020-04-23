@@ -50,7 +50,6 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
-@Disabled
 @Compose(dockerComposePath = "src/test/resources/docker-compose.yml", clusterHealthCheck = KafkaConnectHealthCheck.class)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class KafkaConnectClientIT {
@@ -135,7 +134,7 @@ public class KafkaConnectClientIT {
     for (int i = 0; i < MAX_TASKS; i++) {
       TaskStatus task = statusResponse.tasks().get(i);
       assertEquals(i, task.id());
-      assertEquals("kafka-connect:8083", task.workerID());
+      assertEquals("connect:8083", task.workerID());
     }
   }
 

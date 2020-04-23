@@ -9,14 +9,18 @@ import com.github.jcustenborder.kafka.connect.client.model.ConnectorInfo;
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorStatus;
 import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorRequest;
 import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorResponse;
+import com.github.jcustenborder.kafka.connect.client.model.ImmutableConfigDefinition;
+import com.github.jcustenborder.kafka.connect.client.model.ImmutableConfigElement;
+import com.github.jcustenborder.kafka.connect.client.model.ImmutableConfigValue;
 import com.github.jcustenborder.kafka.connect.client.model.ImmutableCreateConnectorRequest;
 import com.github.jcustenborder.kafka.connect.client.model.ImmutableServerInfo;
-import com.github.jcustenborder.kafka.connect.client.model.ImmutableTaskStatus;
+import com.github.jcustenborder.kafka.connect.client.model.ImmutableValidateResponse;
 import com.github.jcustenborder.kafka.connect.client.model.ServerInfo;
-import com.github.jcustenborder.kafka.connect.client.model.State;
 import com.github.jcustenborder.kafka.connect.client.model.TaskConfig;
 import com.github.jcustenborder.kafka.connect.client.model.TaskStatus;
+import com.github.jcustenborder.kafka.connect.client.model.ValidateResponse;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
@@ -33,10 +37,12 @@ import java.net.URISyntaxException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 
 @ExtendWith({MockRequestExtension.class})
@@ -67,9 +73,16 @@ public class KafkaConnectClientTest {
       if (null != response.metadata().headers() && !response.metadata().headers().isEmpty()) {
         response.metadata().headers().forEach(mockResponse::setHeader);
       }
-      if (null != response.body()) {
-        String body = this.objectMapper.writeValueAsString(response.body());
-        mockResponse.setBody(body);
+      if (response.metadata().isSuccessful()) {
+        if (null != response.body()) {
+          String body = this.objectMapper.writeValueAsString(response.body());
+          mockResponse.setBody(body);
+        }
+      } else {
+        if (null != response.error()) {
+          String body = this.objectMapper.writeValueAsString(response.error());
+          mockResponse.setBody(body);
+        }
       }
       this.mockWebServer.enqueue(mockResponse);
     }
@@ -77,7 +90,7 @@ public class KafkaConnectClientTest {
 
   private <A extends TestRequest, B extends TestResponse> void assertRequests(TestCase<A, B> testCase) throws InterruptedException, JsonProcessingException {
     for (A request : testCase.requests()) {
-      RecordedRequest recordedRequest = this.mockWebServer.takeRequest();
+      RecordedRequest recordedRequest = this.mockWebServer.takeRequest(5, TimeUnit.SECONDS);
       log.info("assertRequests() - method='{}' url='{}'", recordedRequest.getMethod(), recordedRequest.getRequestUrl());
       assertEquals(request.metadata().path(), recordedRequest.getPath());
       assertEquals(request.metadata().method(), recordedRequest.getMethod());
@@ -249,6 +262,16 @@ public class KafkaConnectClientTest {
     Map<String, String> actual = this.kafkaConnectClient.config("hdfs-sink-connector");
     Map<String, String> expected = testCase.responses().get(0).body();
     assertEquals(expected, actual);
+    assertRequests(testCase);
+  }
+
+  @Test
+  public void configNotFound(@LoadMockResponse(path = "config-not-found.json") ConfigTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    KafkaConnectException exception = assertThrows(KafkaConnectException.class, () -> {
+      Map<String, String> actual = this.kafkaConnectClient.config("hdfs-sink-connector");
+    });
+    assertEquals(404, (int) exception.errorCode());
     assertRequests(testCase);
   }
 
@@ -474,11 +497,68 @@ public class KafkaConnectClientTest {
 
   @Test
   public void taskStatus(@LoadMockResponse(path = "taskStatus.json") TaskStatusTestCase testCase) throws IOException, InterruptedException {
-    File outputFile = getOutputFile();
-    this.objectMapper.writeValue(outputFile, testCase);
     configure(testCase);
     TaskStatus actual = this.kafkaConnectClient.status("hdfs-sink-connector", 1);
     TaskStatus expected = testCase.responses().get(0).body();
+    assertEquals(expected, actual);
+    assertRequests(testCase);
+  }
+
+
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableTaskRestartTestCase.class)
+  public interface TaskRestartTestCase extends TestCase<TaskRestartTestCase.TaskRestartTestRequest, TaskRestartTestCase.TaskRestartTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableTaskRestartTestRequest.class)
+    interface TaskRestartTestRequest extends TestRequest<Object> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableTaskRestartTestResponse.class)
+    interface TaskRestartTestResponse extends TestResponse<Object> {
+
+    }
+  }
+
+  @Test
+  public void taskRestart(@LoadMockResponse(path = "taskRestart.json") TaskRestartTestCase testCase) throws IOException, InterruptedException {
+    configure(testCase);
+    this.kafkaConnectClient.restart("hdfs-sink-connector", 1);
+    assertRequests(testCase);
+  }
+
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableValidateTestCase.class)
+  public interface ValidateTestCase extends TestCase<ValidateTestCase.ValidateTestRequest, ValidateTestCase.ValidateTestResponse> {
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableValidateTestRequest.class)
+    interface ValidateTestRequest extends TestRequest<Map<String, String>> {
+
+    }
+
+    @Value.Immutable
+    @Value.Style(jdkOnly = true)
+    @JsonDeserialize(as = ImmutableValidateTestResponse.class)
+    interface ValidateTestResponse extends TestResponse<ValidateResponse> {
+
+    }
+  }
+
+  @Test
+  public void validate(@LoadMockResponse(path = "validate.json") ValidateTestCase testCase) throws IOException, InterruptedException {
+    Map<String, String> config = ImmutableMap.of(
+        "connector.class", "io.confluent.connect.activemq.ActiveMQSourceConnector",
+        "tasks.max", "1"
+    );
+    configure(testCase);
+    ValidateResponse actual = this.kafkaConnectClient.validate("io.confluent.connect.activemq.ActiveMQSourceConnector", config);
+    ValidateResponse expected = testCase.responses().get(0).body();
     assertEquals(expected, actual);
     assertRequests(testCase);
   }

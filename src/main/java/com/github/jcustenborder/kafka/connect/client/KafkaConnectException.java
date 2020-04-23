@@ -16,6 +16,7 @@
 package com.github.jcustenborder.kafka.connect.client;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.jcustenborder.kafka.connect.client.model.ErrorResponse;
 
 import java.io.IOException;
 
@@ -25,6 +26,10 @@ import java.io.IOException;
 public class KafkaConnectException extends IOException {
 
   public KafkaConnectException() {
+  }
+
+  KafkaConnectException(ErrorResponse error) {
+    this(error.errorCode(), error.message());
   }
 
   KafkaConnectException(Integer errorCode, String message) {

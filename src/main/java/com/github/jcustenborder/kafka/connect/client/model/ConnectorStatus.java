@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.immutables.value.Value;
 
+import javax.annotation.Nullable;
 import java.util.List;
 
 @Value.Style(jdkOnly = true)
@@ -33,4 +34,8 @@ public interface ConnectorStatus {
 
   @JsonProperty("tasks")
   List<TaskStatus> tasks();
+
+  @Nullable
+  @JsonProperty("type")
+  String type();
 }

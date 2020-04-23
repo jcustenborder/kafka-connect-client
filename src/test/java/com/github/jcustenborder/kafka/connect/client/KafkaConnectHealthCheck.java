@@ -23,7 +23,7 @@ import com.palantir.docker.compose.connection.waiting.SuccessOrFailure;
 public class KafkaConnectHealthCheck implements ClusterHealthCheck {
   @Override
   public SuccessOrFailure isClusterHealthy(Cluster cluster) throws InterruptedException {
-    Container container = cluster.container("kafka-connect");
+    Container container = cluster.container("connect");
     return container.portIsListeningOnHttpAndCheckStatus2xx(8083, dockerPort -> dockerPort.inFormat("http://$HOST:$EXTERNAL_PORT/connectors"));
   }
 }

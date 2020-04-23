@@ -19,6 +19,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.immutables.value.Value;
 
+import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 
 @Value.Style(jdkOnly = true)
@@ -37,6 +39,9 @@ public interface ValidateResponse {
   @JsonProperty("configs")
   List<ConfigElement> configs();
 
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableConfigElement.class)
   interface ConfigElement {
     @JsonProperty("definition")
     ConfigDefinition definition();
@@ -45,7 +50,9 @@ public interface ValidateResponse {
     ConfigValue value();
   }
 
-
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableConfigDefinition.class)
   interface ConfigDefinition {
     public enum Type {
 
@@ -68,6 +75,7 @@ public interface ValidateResponse {
     @JsonProperty("required")
     boolean required();
 
+    @Nullable
     @JsonProperty("default_value")
     String defaultValue();
 
@@ -80,8 +88,12 @@ public interface ValidateResponse {
     @JsonProperty("group")
     String group();
 
+    @Nullable
     @JsonProperty("order_in_group")
-    int orderInGroup();
+    Integer orderInGroup();
+
+    @JsonProperty("order")
+    int order();
 
     @JsonProperty("width")
     String width();
@@ -90,21 +102,31 @@ public interface ValidateResponse {
     String displayName();
 
     @JsonProperty("dependents")
-    List<String> dependents();
+    default List<String> dependents() {
+      return new ArrayList<>();
+    }
   }
 
+  @Value.Immutable
+  @Value.Style(jdkOnly = true)
+  @JsonDeserialize(as = ImmutableConfigValue.class)
   interface ConfigValue {
     @JsonProperty("name")
     String name();
 
+    @Nullable
     @JsonProperty("value")
     String value();
 
     @JsonProperty("recommended_values")
-    List<String> recommendedValues();
+    default List<String> recommendedValues() {
+      return new ArrayList<>();
+    }
 
     @JsonProperty("errors")
-    List<String> errors();
+    default List<String> errors() {
+      return new ArrayList<>();
+    }
 
     @JsonProperty("visible")
     boolean visible();

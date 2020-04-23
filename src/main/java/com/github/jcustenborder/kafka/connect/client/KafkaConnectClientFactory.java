@@ -16,8 +16,17 @@
 package com.github.jcustenborder.kafka.connect.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import okhttp3.Authenticator;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.Route;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.io.IOException;
+import java.time.Duration;
 
 public class KafkaConnectClientFactory {
   private HttpUrl.Builder baseUrlBuilder = new HttpUrl.Builder()
@@ -31,8 +40,17 @@ public class KafkaConnectClientFactory {
 
   private KafkaConnectClientImpl createClientImpl() {
     OkHttpClient client = new OkHttpClient.Builder()
-        .addInterceptor(new LoggingInterceptor())
-        .addInterceptor(new RebalancingInterceptor(10))
+        .callTimeout(Duration.ofSeconds(30))
+        .connectTimeout(Duration.ofSeconds(30))
+        .writeTimeout(Duration.ofSeconds(30))
+        .readTimeout(Duration.ofSeconds(30))
+        .authenticator(new Authenticator() {
+          @Nullable
+          @Override
+          public Request authenticate(@Nullable Route route, @NotNull Response response) throws IOException {
+            return null;
+          }
+        })
         .build();
     HttpUrl httpUrl = this.baseUrlBuilder.build();
     return new KafkaConnectClientImpl(httpUrl, client,

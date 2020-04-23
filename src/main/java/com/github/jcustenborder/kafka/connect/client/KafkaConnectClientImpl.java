@@ -27,15 +27,11 @@ import com.github.jcustenborder.kafka.connect.client.model.ServerInfo;
 import com.github.jcustenborder.kafka.connect.client.model.TaskConfig;
 import com.github.jcustenborder.kafka.connect.client.model.TaskStatus;
 import com.github.jcustenborder.kafka.connect.client.model.ValidateResponse;
-import okhttp3.Call;
-import okhttp3.Callback;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import okhttp3.Response;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +42,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 
 class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectClient {
   private static final Logger log = LoggerFactory.getLogger(KafkaConnectClientImpl.class);
@@ -55,6 +53,7 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
   private final HttpUrl baseUrl;
   private final OkHttpClient client;
   private final ObjectMapper objectMapper;
+  private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
   static final TypeReference<Map<String, String>> CONFIG_TYPE = new TypeReference<Map<String, String>>() {
   };
@@ -97,7 +96,10 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
   }
 
   HttpUrl connectorsPluginsUrl(String... parts) {
-    return baseUrl("connector-plugins");
+    List<String> segments = new ArrayList<>();
+    segments.add("connector-plugins");
+    segments.addAll(Arrays.asList(parts));
+    return addPathSegments(this.baseUrl, segments);
   }
 
 
@@ -214,96 +216,33 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
     return get(future);
   }
 
-  <T> T parseAs(Response response, Class<T> cls) throws IOException {
-//    checkAndRaiseException(response);
-    String body = response.body().string();
-    if (log.isTraceEnabled()) {
-      log.trace("parseAs() - response: \n{}", body);
-    }
-    return this.objectMapper.readValue(body, cls);
-  }
-
-  <T> T parseAs(Response response, TypeReference<T> token) throws IOException {
-//    checkAndRaiseException(response);
-
-
-    String body = response.body().string();
-    if (log.isTraceEnabled()) {
-      log.trace("parseAs() - response: \n{}", body);
-    }
-    return this.objectMapper.readValue(body, token);
-  }
-
-  private void checkAndRaiseException(Response httpResponse) throws IOException {
-    log.trace(
-        "checkAndRaiseException() - statusCode = '{}' successStatusCode = '{}'",
-        httpResponse.code(),
-        httpResponse.isSuccessful()
+  private <T> CompletableFuture<T> executeRequest(Request request, TypeReference<T> type) {
+    final CompletableFuture<T> futureResult = new CompletableFuture<>();
+    final TypeReferenceCallback<T> callback = new TypeReferenceCallback<>(
+        this.client,
+        this.objectMapper,
+        futureResult,
+        10,
+        scheduler,
+        3000,
+        type
     );
-    if (!httpResponse.isSuccessful()) {
-      KafkaConnectException ex = parseAs(httpResponse, KafkaConnectException.class);
-      throw ex;
-    }
-  }
-
-  private CompletableFuture<Void> executeNoResponse(Request request) {
-    final CompletableFuture<Void> futureResult = new CompletableFuture<>();
-    this.client.newCall(request).enqueue(new Callback() {
-      @Override
-      public void onFailure(@NotNull Call call, @NotNull IOException e) {
-        futureResult.completeExceptionally(e);
-      }
-
-      @Override
-      public void onResponse(@NotNull Call call, @NotNull Response response) {
-        futureResult.complete(null);
-      }
-    });
+    callback.newCall(request);
     return futureResult;
   }
 
-  private <T> CompletableFuture<T> executeRequest(Request request, TypeReference<T> token) {
+  private <T> CompletableFuture<T> executeRequest(Request request, Class<T> type) {
     final CompletableFuture<T> futureResult = new CompletableFuture<>();
-    this.client.newCall(request).enqueue(new Callback() {
-      @Override
-      public void onFailure(@NotNull Call call, @NotNull IOException e) {
-        futureResult.completeExceptionally(e);
-      }
-
-      @Override
-      public void onResponse(@NotNull Call call, @NotNull Response response) {
-        try {
-          log.trace("executeRequest() - request = '{}' response = '{}'", request, response);
-          T result = parseAs(response, token);
-          futureResult.complete(result);
-        } catch (Exception ex) {
-          futureResult.completeExceptionally(ex);
-        }
-      }
-    });
-    return futureResult;
-  }
-
-  private <T> CompletableFuture<T> executeRequest(Request request, Class<T> cls) {
-    final CompletableFuture<T> futureResult = new CompletableFuture<>();
-    this.client.newCall(request).enqueue(new Callback() {
-      @Override
-      public void onFailure(@NotNull Call call, @NotNull IOException e) {
-        log.warn("executeRequest() - Request failure. request = '{}'", request, e);
-        futureResult.completeExceptionally(e);
-      }
-
-      @Override
-      public void onResponse(@NotNull Call call, @NotNull Response response) {
-        try {
-          log.trace("executeRequest() - request = '{}' response = '{}'", request, response);
-          T result = parseAs(response, cls);
-          futureResult.complete(result);
-        } catch (Exception ex) {
-          futureResult.completeExceptionally(ex);
-        }
-      }
-    });
+    final ClassCallback<T> callback = new ClassCallback<>(
+        this.client,
+        this.objectMapper,
+        futureResult,
+        10,
+        scheduler,
+        3000,
+        type
+    );
+    callback.newCall(request);
     return futureResult;
   }
 
@@ -389,7 +328,7 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
         .url(connectorUrl)
         .delete()
         .build();
-    return executeNoResponse(request);
+    return executeRequest(request, Void.class);
   }
 
   @Override
@@ -399,7 +338,7 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
         .url(connectorUrl)
         .post(EMPTY)
         .build();
-    return executeNoResponse(request);
+    return executeRequest(request, Void.class);
   }
 
   @Override
@@ -409,7 +348,7 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
         .url(connectorUrl)
         .put(EMPTY)
         .build();
-    return executeNoResponse(request);
+    return executeRequest(request, Void.class);
   }
 
   @Override
@@ -419,7 +358,7 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
         .url(connectorUrl)
         .put(EMPTY)
         .build();
-    return executeNoResponse(request);
+    return executeRequest(request, Void.class);
   }
 
   @Override
@@ -447,7 +386,7 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
         .url(connectorUrl)
         .post(EMPTY)
         .build();
-    return executeNoResponse(request);
+    return executeRequest(request, Void.class);
   }
 
   @Override
@@ -500,6 +439,6 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
 
   @Override
   public void close() throws Exception {
-
+    this.scheduler.shutdown();
   }
 }
