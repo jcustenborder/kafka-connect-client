@@ -24,6 +24,7 @@ import com.github.jcustenborder.kafka.connect.client.model.ServerInfo;
 import com.github.jcustenborder.kafka.connect.client.model.TaskConfig;
 import com.github.jcustenborder.kafka.connect.client.model.TaskStatus;
 import com.github.jcustenborder.kafka.connect.client.model.ValidateResponse;
+import org.immutables.value.Value;
 
 import java.util.List;
 import java.util.Map;
@@ -151,4 +152,21 @@ public interface AsyncKafkaConnectClient extends AutoCloseable {
   CompletableFuture<ServerInfo> serverInfoAsync();
 
   CompletableFuture<List<TaskConfig>> taskConfigsAsync(String name);
+
+  @Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
+  @Value.Immutable
+  class AsyncSettings extends AbstractSettings {
+    interface Builder extends ClientBuilder<Builder> {
+      AsyncSettings build();
+
+      default AsyncKafkaConnectClient createClient() {
+        AsyncSettings settings = this.build();
+        return new KafkaConnectClientImpl(settings);
+      }
+    }
+  }
+
+  static AsyncSettings.Builder builder() {
+    return ImmutableAsyncSettings.builder();
+  }
 }

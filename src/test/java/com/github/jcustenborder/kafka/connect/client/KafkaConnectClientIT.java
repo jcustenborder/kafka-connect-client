@@ -20,15 +20,15 @@ import com.github.jcustenborder.docker.junit5.Port;
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorInfo;
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorPlugin;
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorStatus;
-import com.github.jcustenborder.kafka.connect.client.model.TaskStatus;
-import com.github.jcustenborder.kafka.connect.client.model.WorkerStatus;
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorType;
 import com.github.jcustenborder.kafka.connect.client.model.ServerInfo;
 import com.github.jcustenborder.kafka.connect.client.model.State;
+import com.github.jcustenborder.kafka.connect.client.model.TaskStatus;
 import com.github.jcustenborder.kafka.connect.client.model.ValidateResponse;
+import com.github.jcustenborder.kafka.connect.client.model.WorkerStatus;
 import com.google.common.collect.ImmutableMap;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -54,18 +54,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class KafkaConnectClientIT {
   private static final Logger log = LoggerFactory.getLogger(KafkaConnectClientIT.class);
-
   KafkaConnectClient client;
-
 
   @BeforeEach
   public void before(@Port(container = "connect", internalPort = 8083) InetSocketAddress address) {
     log.info("before() - Configuring client factory to {}", address);
-    KafkaConnectClientFactory clientFactory;
-    clientFactory = new KafkaConnectClientFactory();
-    clientFactory.host(address.getHostString());
-    clientFactory.port(address.getPort());
-    this.client = clientFactory.createClient();
+    this.client = KafkaConnectClient.builder()
+        .host(address.getHostString())
+        .port(address.getPort())
+        .createClient();
+  }
+
+  @AfterEach
+  public void afterEach() throws Exception {
+    this.client.close();
   }
 
   void ensureNoConnectors() throws IOException {

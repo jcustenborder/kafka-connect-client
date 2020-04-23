@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +17,6 @@ package com.github.jcustenborder.kafka.connect.client;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorInfo;
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorPlugin;
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorStatus;
@@ -29,7 +28,6 @@ import com.github.jcustenborder.kafka.connect.client.model.TaskStatus;
 import com.github.jcustenborder.kafka.connect.client.model.ValidateResponse;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import org.slf4j.Logger;
@@ -42,9 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
 
 class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectClient {
   static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
@@ -58,21 +54,10 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
   static final TypeReference<List<ConnectorPlugin>> CONNECTOR_PLUGIN_TYPE = new TypeReference<List<ConnectorPlugin>>() {
   };
   private static final Logger log = LoggerFactory.getLogger(KafkaConnectClientImpl.class);
-  private final HttpUrl baseUrl;
-  private final OkHttpClient client;
-  private final ObjectMapper objectMapper;
-  private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+  final AbstractSettings settings;
 
-
-  KafkaConnectClientImpl(
-      HttpUrl baseUrl,
-      OkHttpClient client,
-      String username,
-      String password,
-      ObjectMapper objectMapper) {
-    this.baseUrl = baseUrl;
-    this.client = client;
-    this.objectMapper = objectMapper;
+  public KafkaConnectClientImpl(AbstractSettings settings) {
+    this.settings = settings;
   }
 
   static HttpUrl addPathSegments(HttpUrl baseUrl, Iterable<String> parts) {
@@ -98,21 +83,21 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
   }
 
   HttpUrl baseUrl(String... parts) {
-    return addPathSegments(this.baseUrl, Arrays.asList(parts));
+    return addPathSegments(this.settings.baseUrl(), Arrays.asList(parts));
   }
 
   HttpUrl connectorsUrl(String... parts) {
     List<String> segments = new ArrayList<>();
     segments.add("connectors");
     segments.addAll(Arrays.asList(parts));
-    return addPathSegments(this.baseUrl, segments);
+    return addPathSegments(this.settings.baseUrl(), segments);
   }
 
   HttpUrl connectorsPluginsUrl(String... parts) {
     List<String> segments = new ArrayList<>();
     segments.add("connector-plugins");
     segments.addAll(Arrays.asList(parts));
-    return addPathSegments(this.baseUrl, segments);
+    return addPathSegments(this.settings.baseUrl(), segments);
   }
 
   void checkConnectorConfig(Map<String, String> config) {
@@ -217,14 +202,11 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
   private <T> CompletableFuture<T> executeRequest(Request request, TypeReference<T> type) {
     final CompletableFuture<T> futureResult = new CompletableFuture<>();
     final TypeReferenceCallback<T> callback = new TypeReferenceCallback<>(
-        this.client,
-        this.objectMapper,
+        this.settings,
         futureResult,
-        10,
-        scheduler,
-        3000,
         type
     );
+
     callback.newCall(request);
     return futureResult;
   }
@@ -232,12 +214,8 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
   private <T> CompletableFuture<T> executeRequest(Request request, Class<T> type) {
     final CompletableFuture<T> futureResult = new CompletableFuture<>();
     final ClassCallback<T> callback = new ClassCallback<>(
-        this.client,
-        this.objectMapper,
+        this.settings,
         futureResult,
-        10,
-        scheduler,
-        3000,
         type
     );
     callback.newCall(request);
@@ -245,7 +223,11 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
   }
 
   Request.Builder newBuilder() {
-    return new Request.Builder();
+    Request.Builder result = new Request.Builder();
+    if (this.settings.hasCredentials()) {
+      result.addHeader("Authorization", this.settings.credentials());
+    }
+    return result;
   }
 
   @Override
@@ -274,7 +256,7 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
 
   protected RequestBody body(Object o) {
     try {
-      byte[] body = this.objectMapper.writeValueAsBytes(o);
+      byte[] body = this.settings.objectMapper().writeValueAsBytes(o);
       RequestBody requestBody = RequestBody.create(body, JSON);
       return requestBody;
     } catch (JsonProcessingException e) {
@@ -419,7 +401,7 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
   @Override
   public CompletableFuture<ServerInfo> serverInfoAsync() {
     Request request = newBuilder()
-        .url(this.baseUrl)
+        .url(this.settings.baseUrl())
         .build();
     return executeRequest(request, ServerInfo.class);
   }
@@ -437,6 +419,8 @@ class KafkaConnectClientImpl implements AsyncKafkaConnectClient, KafkaConnectCli
 
   @Override
   public void close() throws Exception {
-    this.scheduler.shutdown();
+    if (this.settings.shutdownSchedulerOnClose()) {
+      this.settings.scheduler().shutdown();
+    }
   }
 }

@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,6 +24,7 @@ import com.github.jcustenborder.kafka.connect.client.model.ServerInfo;
 import com.github.jcustenborder.kafka.connect.client.model.TaskConfig;
 import com.github.jcustenborder.kafka.connect.client.model.TaskStatus;
 import com.github.jcustenborder.kafka.connect.client.model.ValidateResponse;
+import org.immutables.value.Value;
 
 import java.io.IOException;
 import java.util.List;
@@ -174,4 +175,20 @@ public interface KafkaConnectClient extends AutoCloseable {
    * @return
    */
   List<TaskConfig> taskConfigs(String name) throws IOException;
+
+  @Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
+  @Value.Immutable
+  class Settings extends AbstractSettings {
+    interface Builder extends ClientBuilder<Builder> {
+      Settings build();
+      default KafkaConnectClient createClient() {
+        Settings settings = this.build();
+        return new KafkaConnectClientImpl(settings);
+      }
+    }
+  }
+
+  static Settings.Builder builder() {
+    return ImmutableSettings.builder();
+  }
 }

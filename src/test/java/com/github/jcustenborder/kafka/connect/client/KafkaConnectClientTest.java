@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,6 +34,7 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.immutables.value.Value;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -69,10 +70,15 @@ public class KafkaConnectClientTest {
     this.objectMapper = new ObjectMapper();
     this.objectMapper.configure(SerializationFeature.INDENT_OUTPUT, true);
     this.objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-    this.kafkaConnectClient = new KafkaConnectClientFactory()
+    this.kafkaConnectClient = KafkaConnectClient.builder()
         .host(this.mockWebServer.getHostName())
         .port(this.mockWebServer.getPort())
         .createClient();
+  }
+
+  @AfterEach
+  public void after() throws Exception {
+    this.kafkaConnectClient.close();
   }
 
   private <A extends TestRequest, B extends TestResponse> void configure(TestCase<A, B> testCase) throws JsonProcessingException {
