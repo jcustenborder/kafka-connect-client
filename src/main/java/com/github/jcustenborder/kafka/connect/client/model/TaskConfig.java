@@ -21,12 +21,27 @@ import org.immutables.value.Value;
 
 import java.util.Map;
 
-@Value.Style(jdkOnly = true)
+@Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
 @Value.Immutable
 @JsonDeserialize(as = ImmutableTaskConfig.class)
-public interface TaskConfig {
+public abstract class TaskConfig {
   @JsonProperty("id")
-  TaskInfo id();
+  @Value.Parameter
+  public abstract TaskInfo id();
   @JsonProperty("config")
-  Map<String, String> config();
+  @Value.Parameter
+  public abstract Map<String, String> config();
+
+  public interface Builder {
+    Builder id(TaskInfo id);
+    Builder putConfig(String key, String value) ;
+    Builder putConfig(Map.Entry<String, ? extends String> entry);
+    Builder config(Map<String, ? extends String> entries);
+    Builder putAllConfig(Map<String, ? extends String> entries);
+    TaskConfig build();
+  }
+
+  public static Builder builder() {
+    return ImmutableTaskConfig.builder();
+  }
 }

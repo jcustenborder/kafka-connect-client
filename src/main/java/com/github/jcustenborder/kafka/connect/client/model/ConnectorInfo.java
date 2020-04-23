@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,22 +23,37 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 
-@Value.Style(jdkOnly = true)
+@Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
 @Value.Immutable
 @JsonDeserialize(as = ImmutableConnectorInfo.class)
-public interface ConnectorInfo {
+public abstract class ConnectorInfo {
   @JsonProperty("name")
-  String name();
+  public abstract String name();
 
   @JsonProperty("config")
-  Map<String, String> config();
+  public abstract Map<String, String> config();
 
   @JsonProperty("tasks")
-  List<TaskInfo> tasks();
+  public abstract List<TaskInfo> tasks();
 
   @JsonProperty(value = "type", required = false)
   @Nullable
-  ConnectorType type();
+  public abstract ConnectorType type();
 
+  public interface Builder {
+    Builder name(String name);
+    Builder putConfig(String key, String value);
+    Builder config(Map<String, ? extends String> entries);
+    Builder putConfig(Map.Entry<String, ? extends String> entry);
+    Builder addTasks(TaskInfo element);
+    Builder addTasks(TaskInfo... elements);
+
+    Builder type(ConnectorType type);
+    ConnectorInfo build();
+  }
+
+  public static Builder builder() {
+    return ImmutableConnectorInfo.builder();
+  }
 
 }

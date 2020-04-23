@@ -19,13 +19,27 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.immutables.value.Value;
 
-@Value.Style(jdkOnly = true)
+import java.util.Map;
+
+@Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
 @Value.Immutable
 @JsonDeserialize(as = ImmutableTaskInfo.class)
-public interface TaskInfo {
+public abstract class TaskInfo {
   @JsonProperty("connector")
-  String connector();
+  @Value.Parameter
+  public abstract String connector();
 
   @JsonProperty("task")
-  Integer task();
+  @Value.Parameter
+  public abstract Integer task();
+
+  public interface Builder {
+    Builder connector(String connector);
+    Builder task(Integer task);
+    TaskInfo build();
+  }
+
+  public static Builder builder() {
+    return ImmutableTaskInfo.builder();
+  }
 }

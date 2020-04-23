@@ -22,10 +22,10 @@ import org.immutables.value.Value;
 import java.util.List;
 import java.util.Map;
 
-@Value.Style(jdkOnly = true)
+@Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
 @Value.Immutable
 @JsonDeserialize(as = ImmutableCreateConnectorResponse.class)
-public interface CreateConnectorResponse {
+public abstract class CreateConnectorResponse {
   /**
    * name (string) – Name of the created connector
    * config (map) – Configuration parameters for the connector.
@@ -34,11 +34,29 @@ public interface CreateConnectorResponse {
    * tasks[i].task (int) – Task ID within the connector.
    */
   @JsonProperty("name")
-  String name();
+  @Value.Parameter
+  public abstract String name();
 
   @JsonProperty("config")
-  Map<String, String> config();
+  @Value.Parameter
+  public abstract Map<String, String> config();
 
   @JsonProperty("tasks")
-  List<TaskInfo> tasks();
+  @Value.Parameter
+  public abstract List<TaskInfo> tasks();
+
+  public interface Builder {
+    Builder name(String name);
+    Builder putConfig(String key, String value);
+    Builder config(Map<String, ? extends String> entries);
+    Builder putConfig(Map.Entry<String, ? extends String> entry);
+    Builder addTasks(TaskInfo element);
+    Builder addTasks(TaskInfo... elements);
+    Builder tasks(Iterable<? extends TaskInfo> elements);
+    CreateConnectorResponse build();
+  }
+
+  public static Builder builder() {
+    return CreateConnectorResponse.builder();
+  }
 }

@@ -22,20 +22,38 @@ import org.immutables.value.Value;
 import javax.annotation.Nullable;
 import java.util.List;
 
-@Value.Style(jdkOnly = true)
+@Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
 @Value.Immutable
 @JsonDeserialize(as = ImmutableConnectorStatus.class)
-public interface ConnectorStatus {
+public abstract class ConnectorStatus {
   @JsonProperty("name")
-  String name();
+  @Value.Parameter
+  public abstract String name();
 
   @JsonProperty("connector")
-  ConnectorState connector();
+  @Value.Parameter
+  public abstract ConnectorState connector();
 
   @JsonProperty("tasks")
-  List<TaskStatus> tasks();
+  @Value.Parameter
+  public abstract List<TaskStatus> tasks();
 
   @Nullable
   @JsonProperty("type")
-  String type();
+  @Value.Parameter
+  public abstract String type();
+
+  public interface Builder {
+    Builder name(String name);
+    Builder connector(ConnectorState connector);
+    Builder addTasks(TaskStatus element);
+    Builder addTasks(TaskStatus... elements);
+    Builder tasks(Iterable<? extends TaskStatus> elements);
+    Builder type(String type);
+    ConnectorStatus build();
+  }
+
+  public static Builder builder() {
+    return ImmutableConnectorStatus.builder();
+  }
 }

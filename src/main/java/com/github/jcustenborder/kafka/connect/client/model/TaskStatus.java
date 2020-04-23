@@ -19,10 +19,23 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.immutables.value.Value;
 
-@Value.Style(jdkOnly = true)
+@Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
 @Value.Immutable
 @JsonDeserialize(as = ImmutableTaskStatus.class)
-public interface TaskStatus extends WorkerStatus {
+public abstract class TaskStatus extends WorkerStatus {
   @JsonProperty("id")
-  Integer id();
+  @Value.Parameter
+  public abstract Integer id();
+
+  public interface Builder {
+    Builder id(Integer id);
+    Builder state(State state);
+    Builder workerID(String workerID);
+    Builder trace(String trace);
+    TaskStatus build();
+  }
+
+  public static Builder builder() {
+    return ImmutableTaskStatus.builder();
+  }
 }

@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,12 +20,26 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.immutables.value.Value;
 
 @Value.Immutable
-@Value.Style(jdkOnly = true)
+@Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
 @JsonDeserialize(as = ImmutableErrorResponse.class)
-public interface ErrorResponse {
+public abstract class ErrorResponse {
   @JsonProperty("error_code")
-  int errorCode();
+  @Value.Parameter
+  public abstract int errorCode();
 
   @JsonProperty("message")
-  String message();
+  @Value.Parameter
+  public abstract String message();
+
+  public interface Builder {
+    Builder errorCode(int errorCode);
+
+    Builder message(String message);
+
+    ErrorResponse build();
+  }
+
+  public static Builder builder() {
+    return ImmutableErrorResponse.builder();
+  }
 }

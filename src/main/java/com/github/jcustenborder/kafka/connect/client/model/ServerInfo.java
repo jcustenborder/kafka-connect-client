@@ -21,13 +21,28 @@ import org.immutables.value.Value;
 
 @Value.Immutable
 @JsonDeserialize(as = ImmutableServerInfo.class)
-public interface ServerInfo {
+@Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
+public abstract class ServerInfo {
   @JsonProperty("version")
-  String version();
+  @Value.Parameter
+  public abstract String version();
 
   @JsonProperty("commit")
-  String commit();
+  @Value.Parameter
+  public abstract String commit();
 
   @JsonProperty("kafka_cluster_id")
-  String kafkaClusterId();
+  @Value.Parameter
+  public abstract String kafkaClusterId();
+
+  public interface Builder {
+    Builder version(String version);
+    Builder commit(String commit);
+    Builder kafkaClusterId(String kafkaClusterId);
+    ServerInfo build();
+  }
+
+  public static Builder builder() {
+    return ImmutableServerInfo.builder();
+  }
 }

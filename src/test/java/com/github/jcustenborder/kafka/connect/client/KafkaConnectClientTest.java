@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,12 +24,6 @@ import com.github.jcustenborder.kafka.connect.client.model.ConnectorInfo;
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorStatus;
 import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorRequest;
 import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorResponse;
-import com.github.jcustenborder.kafka.connect.client.model.ImmutableConfigDefinition;
-import com.github.jcustenborder.kafka.connect.client.model.ImmutableConfigElement;
-import com.github.jcustenborder.kafka.connect.client.model.ImmutableConfigValue;
-import com.github.jcustenborder.kafka.connect.client.model.ImmutableCreateConnectorRequest;
-import com.github.jcustenborder.kafka.connect.client.model.ImmutableServerInfo;
-import com.github.jcustenborder.kafka.connect.client.model.ImmutableValidateResponse;
 import com.github.jcustenborder.kafka.connect.client.model.ServerInfo;
 import com.github.jcustenborder.kafka.connect.client.model.TaskConfig;
 import com.github.jcustenborder.kafka.connect.client.model.TaskStatus;
@@ -145,7 +139,7 @@ public class KafkaConnectClientTest {
 
     ServerInfo serverInfo = this.kafkaConnectClient.serverInfo();
     assertEquals(
-        ImmutableServerInfo.builder()
+        ServerInfo.builder()
             .commit("e5741b90cde98052")
             .kafkaClusterId("I4ZmrWqfT2e-upky_4fdPA")
             .version("5.5.0")
@@ -206,7 +200,7 @@ public class KafkaConnectClientTest {
   @Test
   public void createConnector(@LoadMockResponse(path = "createConnector.json") CreateConnectorTestCase testCase) throws IOException, InterruptedException {
     configure(testCase);
-    CreateConnectorRequest request = ImmutableCreateConnectorRequest.builder()
+    CreateConnectorRequest request = CreateConnectorRequest.builder()
         .name("hdfs-sink-connector")
         .putConfig("connector.class", "io.confluent.connect.hdfs.HdfsSinkConnector")
         .putConfig("tasks.max", "10")

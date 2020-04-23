@@ -16,18 +16,23 @@
 package com.github.jcustenborder.kafka.connect.client.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.immutables.value.Value;
 
 import javax.annotation.Nullable;
 
 
-public interface WorkerStatus {
+public abstract class WorkerStatus {
   @JsonProperty("state")
-  State state();
+  @Value.Parameter
+  public abstract State state();
 
   @JsonProperty("worker_id")
-  String workerID();
+  @Value.Parameter
+  public abstract String workerID();
 
   @Nullable
   @JsonProperty("trace")
-  String trace();
+  @Value.Parameter
+  public abstract String trace();
+
 }

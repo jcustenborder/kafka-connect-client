@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,9 +18,18 @@ package com.github.jcustenborder.kafka.connect.client.model;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.immutables.value.Value;
 
-@Value.Style(jdkOnly = true)
+@Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
 @Value.Immutable
 @JsonDeserialize(as = ImmutableConnectorState.class)
-public interface ConnectorState extends WorkerStatus {
+public abstract class ConnectorState extends WorkerStatus {
+  public interface Builder {
+    Builder state(State state);
+    Builder workerID(String workerID);
+    Builder trace(String trace);
+    ConnectorState build();
+  }
 
+  public static Builder builder() {
+    return ImmutableConnectorState.builder();
+  }
 }

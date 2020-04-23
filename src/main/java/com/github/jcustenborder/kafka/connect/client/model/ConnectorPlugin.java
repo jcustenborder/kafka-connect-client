@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,16 +22,33 @@ import org.immutables.value.Value;
 /**
  * Representation of a connector plugin.
  */
-@Value.Style(jdkOnly = true)
+@Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
 @Value.Immutable
 @JsonDeserialize(as = ImmutableConnectorPlugin.class)
-public interface ConnectorPlugin {
+public abstract class ConnectorPlugin {
   @JsonProperty("class")
-  String className();
+  @Value.Parameter
+  public abstract String className();
 
   @JsonProperty("type")
-  String type();
+  @Value.Parameter
+  public abstract String type();
 
   @JsonProperty("version")
-  String version();
+  @Value.Parameter
+  public abstract String version();
+
+  public interface Builder {
+    Builder className(String className);
+
+    Builder type(String type);
+
+    Builder version(String version);
+
+    ConnectorPlugin build();
+  }
+
+  public static Builder builder() {
+    return ImmutableConnectorPlugin.builder();
+  }
 }

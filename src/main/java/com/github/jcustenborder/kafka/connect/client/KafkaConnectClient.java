@@ -20,7 +20,6 @@ import com.github.jcustenborder.kafka.connect.client.model.ConnectorPlugin;
 import com.github.jcustenborder.kafka.connect.client.model.ConnectorStatus;
 import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorRequest;
 import com.github.jcustenborder.kafka.connect.client.model.CreateConnectorResponse;
-import com.github.jcustenborder.kafka.connect.client.model.ImmutableCreateConnectorRequest;
 import com.github.jcustenborder.kafka.connect.client.model.ServerInfo;
 import com.github.jcustenborder.kafka.connect.client.model.TaskConfig;
 import com.github.jcustenborder.kafka.connect.client.model.TaskStatus;
@@ -44,7 +43,7 @@ public interface KafkaConnectClient extends AutoCloseable {
 
   default CreateConnectorResponse createConnector(String name, Map<String, String> config) throws IOException {
     return createConnector(
-        ImmutableCreateConnectorRequest.builder()
+        CreateConnectorRequest.builder()
             .name(name)
             .putAllConfig(config)
             .build()
