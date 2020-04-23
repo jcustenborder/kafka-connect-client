@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,23 +25,29 @@ import java.util.Map;
 @Value.Immutable
 @JsonDeserialize(as = ImmutableTaskConfig.class)
 public abstract class TaskConfig {
+  public static Builder builder() {
+    return ImmutableTaskConfig.builder();
+  }
+
   @JsonProperty("id")
   @Value.Parameter
   public abstract TaskInfo id();
+
   @JsonProperty("config")
   @Value.Parameter
   public abstract Map<String, String> config();
 
   public interface Builder {
     Builder id(TaskInfo id);
-    Builder putConfig(String key, String value) ;
-    Builder putConfig(Map.Entry<String, ? extends String> entry);
-    Builder config(Map<String, ? extends String> entries);
-    Builder putAllConfig(Map<String, ? extends String> entries);
-    TaskConfig build();
-  }
 
-  public static Builder builder() {
-    return ImmutableTaskConfig.builder();
+    Builder putConfig(String key, String value);
+
+    Builder putConfig(Map.Entry<String, ? extends String> entry);
+
+    Builder config(Map<String, ? extends String> entries);
+
+    Builder putAllConfig(Map<String, ? extends String> entries);
+
+    TaskConfig build();
   }
 }

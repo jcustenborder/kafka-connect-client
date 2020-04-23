@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,12 +19,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.immutables.value.Value;
 
-import java.util.Map;
-
 @Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
 @Value.Immutable
 @JsonDeserialize(as = ImmutableTaskInfo.class)
 public abstract class TaskInfo {
+  public static Builder builder() {
+    return ImmutableTaskInfo.builder();
+  }
+
   @JsonProperty("connector")
   @Value.Parameter
   public abstract String connector();
@@ -35,11 +37,9 @@ public abstract class TaskInfo {
 
   public interface Builder {
     Builder connector(String connector);
-    Builder task(Integer task);
-    TaskInfo build();
-  }
 
-  public static Builder builder() {
-    return ImmutableTaskInfo.builder();
+    Builder task(Integer task);
+
+    TaskInfo build();
   }
 }
