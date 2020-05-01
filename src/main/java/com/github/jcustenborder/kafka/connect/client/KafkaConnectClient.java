@@ -179,7 +179,7 @@ public interface KafkaConnectClient extends AutoCloseable {
   @Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
   @Value.Immutable
   class Settings extends AbstractSettings {
-    interface Builder extends ClientBuilder<Builder> {
+    public interface Builder extends ClientBuilder<Builder> {
       Settings build();
       default KafkaConnectClient createClient() {
         Settings settings = this.build();

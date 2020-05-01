@@ -156,7 +156,7 @@ public interface AsyncKafkaConnectClient extends AutoCloseable {
   @Value.Style(jdkOnly = true, visibility = Value.Style.ImplementationVisibility.PACKAGE)
   @Value.Immutable
   class AsyncSettings extends AbstractSettings {
-    interface Builder extends ClientBuilder<Builder> {
+    public interface Builder extends ClientBuilder<Builder> {
       AsyncSettings build();
 
       default AsyncKafkaConnectClient createClient() {
